@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock @tauri-apps/plugin-sql avant tout import
 const mockDb = {
@@ -56,5 +56,67 @@ describe('WorkspaceStore', () => {
     store.setActiveWorkspace(store.workspaces[0].id);
 
     expect(store.activeWorkspaceId).toBe(store.workspaces[0].id);
+  });
+});
+
+describe('WorkspaceStore — layout mutations & debounce', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDb.select.mockResolvedValue([]);
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('setActiveWorkspace crée un layout initial en mémoire si aucun layout', async () => {
+    const store = new WorkspaceStore();
+    await store.init();
+    await store.addWorkspace('A', '/a');
+
+    store.setActiveWorkspace(store.workspaces[0].id);
+
+    expect(store.activeLayout).not.toBeNull();
+    expect(store.activeLayout!.root.children).toHaveLength(1);
+    expect((store.activeLayout!.root.children[0] as { type: string }).type).toBe('empty');
+  });
+
+  it('splitPanel met à jour activeLayout', async () => {
+    const store = new WorkspaceStore();
+    await store.init();
+    await store.addWorkspace('A', '/a');
+    store.setActiveWorkspace(store.workspaces[0].id);
+
+    const childId = store.activeLayout!.root.children[0].id;
+    store.splitPanel(childId, 'horizontal');
+
+    expect(store.activeLayout!.root.children).toHaveLength(1);
+    const inner = store.activeLayout!.root.children[0] as import('./types').Panel;
+    expect(inner.children).toHaveLength(2);
+  });
+
+  it('mutations multiples rapides → un seul appel saveLayout après 1s', async () => {
+    const store = new WorkspaceStore();
+    await store.init();
+    await store.addWorkspace('A', '/a');
+    store.setActiveWorkspace(store.workspaces[0].id);
+
+    const childId = store.activeLayout!.root.children[0].id;
+    store.splitPanel(childId, 'horizontal');
+    store.splitPanel(childId, 'vertical');
+    store.splitPanel(childId, 'horizontal');
+
+    const layoutCallsBefore = mockDb.execute.mock.calls.filter(
+      (c) => typeof c[0] === 'string' && (c[0] as string).includes('layouts')
+    );
+    expect(layoutCallsBefore).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    const layoutCallsAfter = mockDb.execute.mock.calls.filter(
+      (c) => typeof c[0] === 'string' && (c[0] as string).includes('layouts')
+    );
+    expect(layoutCallsAfter).toHaveLength(1);
   });
 });

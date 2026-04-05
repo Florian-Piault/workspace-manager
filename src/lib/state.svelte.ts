@@ -1,9 +1,16 @@
 import Database from '@tauri-apps/plugin-sql';
-import type { Workspace, Layout, Panel } from './types';
+import type { Workspace, Layout, Panel, WidgetType } from './types';
+import {
+  splitPanel as splitPanelHelper,
+  assignWidget as assignWidgetHelper,
+  closePanel as closePanelHelper,
+  makeInitialRoot,
+} from './layout';
 
 export class WorkspaceStore {
   workspaces = $state<Workspace[]>([]);
   activeWorkspaceId = $state<string | null>(null);
+  activePanelId = $state<string | null>(null);
   layouts = $state<Record<string, Layout>>({});
 
   activeWorkspace = $derived(
@@ -17,6 +24,7 @@ export class WorkspaceStore {
   );
 
   private db: Database | null = null;
+  private _saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   async init(): Promise<void> {
     this.db = await Database.load('sqlite:workspace.db');
@@ -24,15 +32,24 @@ export class WorkspaceStore {
     const wsRows = await this.db.select<Array<{ id: string; name: string; path: string }>>(
       'SELECT * FROM workspaces'
     );
-    const layoutRows = await this.db.select<Array<{ id: string; workspace_id: string }>>(
-      'SELECT id, workspace_id FROM layouts'
+    const layoutRows = await this.db.select<Array<{ id: string; workspace_id: string; config: string }>>(
+      'SELECT id, workspace_id, config FROM layouts'
     );
 
-    const layoutByWorkspace = new Map(layoutRows.map((r) => [r.workspace_id, r.id]));
+    const layoutByWorkspace = new Map(layoutRows.map((r) => [r.workspace_id, r]));
     this.workspaces = wsRows.map((r) => ({
       ...r,
-      layoutId: layoutByWorkspace.get(r.id) ?? null,
+      layoutId: layoutByWorkspace.get(r.id)?.id ?? null,
     }));
+
+    for (const row of layoutRows) {
+      const layout: Layout = {
+        id: row.id,
+        workspaceId: row.workspace_id,
+        root: JSON.parse(row.config),
+      };
+      this.layouts = { ...this.layouts, [row.id]: layout };
+    }
   }
 
   async addWorkspace(name: string, path: string): Promise<Workspace> {
@@ -49,6 +66,59 @@ export class WorkspaceStore {
 
   setActiveWorkspace(id: string | null): void {
     this.activeWorkspaceId = id;
+    this.activePanelId = null;
+    if (id) {
+      const ws = this.workspaces.find((w) => w.id === id);
+      if (ws && !ws.layoutId) {
+        const root = makeInitialRoot();
+        const layoutId = crypto.randomUUID();
+        const layout: Layout = { id: layoutId, workspaceId: id, root };
+        this.layouts = { ...this.layouts, [layoutId]: layout };
+        this.workspaces = this.workspaces.map((w) =>
+          w.id === id ? { ...w, layoutId } : w
+        );
+        this._debouncedSave();
+      }
+    }
+  }
+
+  setActivePanel(id: string | null): void {
+    this.activePanelId = id;
+  }
+
+  splitPanel(nodeId: string, direction: 'horizontal' | 'vertical'): void {
+    const layout = this.activeLayout;
+    if (!layout) return;
+    const newRoot = splitPanelHelper(layout.root, nodeId, direction);
+    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this._debouncedSave();
+  }
+
+  assignWidget(nodeId: string, type: Exclude<WidgetType, 'empty'>): void {
+    const layout = this.activeLayout;
+    if (!layout) return;
+    const newRoot = assignWidgetHelper(layout.root, nodeId, type);
+    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this._debouncedSave();
+  }
+
+  closePanel(nodeId: string): void {
+    const layout = this.activeLayout;
+    if (!layout) return;
+    const newRoot = closePanelHelper(layout.root, nodeId);
+    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    if (this.activePanelId === nodeId) this.activePanelId = null;
+    this._debouncedSave();
+  }
+
+  private _debouncedSave(): void {
+    if (this._saveTimer !== null) clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(async () => {
+      this._saveTimer = null;
+      const layout = this.activeLayout;
+      if (!layout || !this.activeWorkspaceId || !this.db) return;
+      await this.saveLayout(this.activeWorkspaceId, layout.root);
+    }, 1000);
   }
 
   async saveLayout(workspaceId: string, root: Panel): Promise<void> {
