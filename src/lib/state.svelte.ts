@@ -117,7 +117,9 @@ export class WorkspaceStore {
       this._saveTimer = null;
       const layout = this.activeLayout;
       if (!layout || !this.activeWorkspaceId || !this.db) return;
-      await this.saveLayout(this.activeWorkspaceId, layout.root);
+      await this.saveLayout(this.activeWorkspaceId, layout.root).catch((err) => {
+        console.error('[WorkspaceStore] saveLayout failed:', err);
+      });
     }, 1000);
   }
 

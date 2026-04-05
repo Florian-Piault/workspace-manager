@@ -5,7 +5,9 @@
   import LayoutEngine from '$lib/components/LayoutEngine.svelte';
 
   onMount(() => {
-    store.init();
+    store.init().catch((err) => {
+      console.error('[WorkspaceStore] init failed:', err);
+    });
 
     function handleKeydown(e: KeyboardEvent) {
       if (!store.activePanelId) return;
