@@ -21,5 +21,6 @@ export default defineConfig(async () => ({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    passWithNoTests: true,
   },
 }));
