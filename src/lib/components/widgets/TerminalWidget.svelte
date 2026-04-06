@@ -19,6 +19,7 @@
   let unlistenData: (() => void) | null = null;
   let unlistenExit: (() => void) | null = null;
   let resizeObserver: ResizeObserver | null = null;
+  let mounted = true;
 
   async function startPty(targetId: string) {
     const cwd = store.activeWorkspace?.path ?? '/';
@@ -27,6 +28,13 @@
       ptyId = await invoke<string>('pty_create', { id: targetId, cwd });
     } catch (err) {
       error = String(err);
+      return;
+    }
+
+    if (!mounted) {
+      // Composant détruit pendant l'await — nettoyer le PTY et sortir
+      invoke('pty_kill', { id: ptyId }).catch(() => {});
+      ptyId = null;
       return;
     }
 
@@ -65,12 +73,12 @@
       terminal.write(bytes);
     }
 
-    await startPty(nodeId);
-
     terminal.onData((data) => {
       if (!ptyId) return;
       invoke('pty_write', { id: ptyId, data }).catch(() => {});
     });
+
+    await startPty(nodeId);
 
     resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
@@ -82,6 +90,7 @@
   });
 
   onDestroy(async () => {
+    mounted = false;
     resizeObserver?.disconnect();
     unlistenData?.();
     unlistenExit?.();
