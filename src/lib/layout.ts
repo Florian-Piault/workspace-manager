@@ -1,5 +1,5 @@
 import { isPanel } from './types';
-import type { Panel, PanelNode, WidgetType } from './types';
+import type { Panel, PanelNode, Widget, WidgetType } from './types';
 
 function mapNode(
   panel: Panel,
@@ -79,5 +79,24 @@ export function updateNodeConfig(
   return mapNode(root, targetId, (node) => {
     if (isPanel(node)) return node;
     return { ...node, config: { ...node.config, ...config } };
+  });
+}
+
+export function flatWidgets(root: Panel): Widget[] {
+  const result: Widget[] = [];
+  for (const child of root.children) {
+    if (isPanel(child)) {
+      result.push(...flatWidgets(child));
+    } else if (child.type !== 'empty') {
+      result.push(child);
+    }
+  }
+  return result;
+}
+
+export function updateWidgetLabel(root: Panel, targetId: string, label: string): Panel {
+  return mapNode(root, targetId, (node) => {
+    if (isPanel(node)) return node;
+    return { ...(node as Widget), label: label || undefined };
   });
 }

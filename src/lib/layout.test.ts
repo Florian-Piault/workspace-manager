@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitPanel, closePanel, assignWidget, updateNodeConfig } from './layout';
+import { splitPanel, closePanel, assignWidget, updateNodeConfig, flatWidgets, updateWidgetLabel } from './layout';
 import { isPanel } from './types';
 import type { Panel, Widget, PanelNode } from './types';
 
@@ -99,5 +99,45 @@ describe('updateNodeConfig', () => {
 
     const widget = result.children[0] as Widget;
     expect(widget.config).toEqual({ theme: 'dark', scrollback: 'abc123' });
+  });
+});
+
+describe('flatWidgets', () => {
+  it('returns all non-empty widgets from a flat root', () => {
+    const root = p('root', [w('w1', 'terminal'), w('w2', 'code'), w('w3', 'empty')]);
+    const result = flatWidgets(root);
+    expect(result.map((x) => x.id)).toEqual(['w1', 'w2']);
+  });
+
+  it('returns widgets from nested panels', () => {
+    const inner = p('inner', [w('w1', 'terminal'), w('w2', 'browser')]);
+    const root = p('root', [inner, w('w3', 'code')]);
+    const result = flatWidgets(root);
+    expect(result.map((x) => x.id)).toEqual(['w1', 'w2', 'w3']);
+  });
+
+  it('returns empty array when layout has only empty widgets', () => {
+    const root = p('root', [w('w1', 'empty')]);
+    expect(flatWidgets(root)).toHaveLength(0);
+  });
+});
+
+describe('updateWidgetLabel', () => {
+  it('sets label on the target widget', () => {
+    const root = p('root', [w('w1', 'terminal')]);
+    const result = updateWidgetLabel(root, 'w1', 'build');
+    expect((result.children[0] as Widget).label).toBe('build');
+  });
+
+  it('clears label when given empty string', () => {
+    const root = p('root', [{ id: 'w1', type: 'terminal' as const, config: {}, label: 'old' }]);
+    const result = updateWidgetLabel(root, 'w1', '');
+    expect((result.children[0] as Widget).label).toBeUndefined();
+  });
+
+  it('does not affect other widgets', () => {
+    const root = p('root', [w('w1', 'terminal'), w('w2', 'code')]);
+    const result = updateWidgetLabel(root, 'w1', 'build');
+    expect((result.children[1] as Widget).label).toBeUndefined();
   });
 });

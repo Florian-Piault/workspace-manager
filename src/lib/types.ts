@@ -3,6 +3,7 @@ export type WidgetType = 'code' | 'terminal' | 'browser' | 'empty';
 export interface Widget {
   id: string;
   type: WidgetType;
+  label?: string;          // custom display name; falls back to type if absent
   config: Record<string, unknown>;
 }
 
