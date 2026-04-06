@@ -50,7 +50,7 @@
   {#if widget.type !== 'empty'}
     {#if editing}
       <input
-        class="w-20 bg-transparent text-xs text-foreground outline-none"
+        class="w-20 bg-transparent text-xs text-white/90 outline-none"
         bind:value={draft}
         onblur={confirmEdit}
         onkeydown={handleKeydown}
