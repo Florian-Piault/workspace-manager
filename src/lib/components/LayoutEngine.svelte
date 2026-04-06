@@ -33,7 +33,7 @@
     {:else if node.type === 'code'}
       <CodeWidget config={node.config} />
     {:else if node.type === 'terminal'}
-      <TerminalWidget config={node.config} />
+      <TerminalWidget config={node.config} nodeId={node.id} />
     {:else if node.type === 'browser'}
       <BrowserWidget config={node.config} />
     {/if}
