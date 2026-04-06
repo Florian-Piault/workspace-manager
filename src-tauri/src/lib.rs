@@ -1,4 +1,5 @@
 mod pty;
+mod fs;
 
 use pty::PtyManager;
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -14,6 +15,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:workspace.db", migrations)
@@ -26,6 +28,8 @@ pub fn run() {
             pty::pty_resize,
             pty::pty_kill,
             pty::pty_get_scrollback,
+            fs::read_file,
+            fs::write_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
