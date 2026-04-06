@@ -119,4 +119,23 @@ describe('WorkspaceStore — layout mutations & debounce', () => {
     );
     expect(layoutCallsAfter).toHaveLength(1);
   });
+
+  it('updateWidgetConfig met à jour le config du widget et déclenche un save', async () => {
+    const store = new WorkspaceStore();
+    await store.init();
+    await store.addWorkspace('A', '/a');
+    store.setActiveWorkspace(store.workspaces[0].id);
+
+    const widgetId = store.activeLayout!.root.children[0].id;
+    store.updateWidgetConfig(widgetId, { scrollback: 'base64data' });
+
+    const widget = store.activeLayout!.root.children[0] as import('./types').Widget;
+    expect(widget.config).toEqual({ scrollback: 'base64data' });
+
+    await vi.advanceTimersByTimeAsync(1000);
+    const layoutCalls = mockDb.execute.mock.calls.filter(
+      (c) => typeof c[0] === 'string' && (c[0] as string).includes('layouts')
+    );
+    expect(layoutCalls).toHaveLength(1);
+  });
 });

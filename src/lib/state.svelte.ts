@@ -4,6 +4,7 @@ import {
   splitPanel as splitPanelHelper,
   assignWidget as assignWidgetHelper,
   closePanel as closePanelHelper,
+  updateNodeConfig as updateNodeConfigHelper,
   makeInitialRoot,
 } from './layout';
 
@@ -108,6 +109,14 @@ export class WorkspaceStore {
     const newRoot = closePanelHelper(layout.root, nodeId);
     this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
     if (this.activePanelId === nodeId) this.activePanelId = null;
+    this._debouncedSave();
+  }
+
+  updateWidgetConfig(nodeId: string, config: Record<string, unknown>): void {
+    const layout = this.activeLayout;
+    if (!layout) return;
+    const newRoot = updateNodeConfigHelper(layout.root, nodeId, config);
+    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
     this._debouncedSave();
   }
 
