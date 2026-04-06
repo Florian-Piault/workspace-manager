@@ -45,10 +45,12 @@ export class WorkspaceStore {
     }));
 
     for (const row of layoutRows) {
+      const parsed = JSON.parse(row.config);
+      const root = parsed.children?.length === 0 ? makeInitialRoot() : parsed;
       const layout: Layout = {
         id: row.id,
         workspaceId: row.workspace_id,
-        root: JSON.parse(row.config),
+        root,
       };
       this.layouts = { ...this.layouts, [row.id]: layout };
     }
