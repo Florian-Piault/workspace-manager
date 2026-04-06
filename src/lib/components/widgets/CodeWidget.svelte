@@ -127,6 +127,16 @@
 <div class="flex h-full w-full flex-col overflow-hidden">
   <!-- Header -->
   <div class="flex h-8 shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-2">
+    <select
+      class="bg-transparent text-xs text-muted-foreground outline-none cursor-pointer hover:text-foreground transition-colors"
+      value={activeLang}
+      onchange={(e) => setLanguageOverride((e.target as HTMLSelectElement).value)}
+    >
+      {#each SUPPORTED_LANGUAGES as lang}
+        <option value={lang}>{lang}</option>
+      {/each}
+    </select>
+
     <button
       class="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
       onclick={openFile}
@@ -146,16 +156,6 @@
     {#if loading}
       <span class="text-xs text-muted-foreground/60">Chargement…</span>
     {/if}
-
-    <select
-      class="bg-transparent text-xs text-muted-foreground outline-none cursor-pointer hover:text-foreground transition-colors"
-      value={activeLang}
-      onchange={(e) => setLanguageOverride((e.target as HTMLSelectElement).value)}
-    >
-      {#each SUPPORTED_LANGUAGES as lang}
-        <option value={lang}>{lang}</option>
-      {/each}
-    </select>
   </div>
 
   <!-- Éditeur -->
