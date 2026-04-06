@@ -1,3 +1,6 @@
+mod pty;
+
+use pty::PtyManager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,7 +19,13 @@ pub fn run() {
                 .add_migrations("sqlite:workspace.db", migrations)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![])
+        .manage(PtyManager::new())
+        .invoke_handler(tauri::generate_handler![
+            pty::pty_create,
+            pty::pty_write,
+            pty::pty_resize,
+            pty::pty_kill,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
