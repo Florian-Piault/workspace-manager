@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "workspace-manager",
-        "width": 800,
-        "height": 600
+        "title": "Workspace manager",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "devtools": true
       }
     ],
     "security": {
@@ -22,6 +24,7 @@
     }
   },
   "bundle": {
+    "identifier": "com.piflorian.workspace-manager",
     "active": true,
     "targets": "all",
     "icon": [
