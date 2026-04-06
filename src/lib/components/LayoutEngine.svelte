@@ -8,6 +8,7 @@
   import WidgetPicker from './WidgetPicker.svelte';
   import PanelOverlay from './PanelOverlay.svelte';
   import LayoutEngine from './LayoutEngine.svelte';
+  import { store } from '$lib/state.svelte';
 
   let { node, isRoot = false }: { node: PanelNode; isRoot?: boolean } = $props();
 </script>
@@ -16,7 +17,7 @@
   {#if node.children.length === 0}
     <WidgetPicker nodeId={node.id} />
   {:else}
-    <PaneGroup direction={node.direction} class="h-full w-full">
+    <PaneGroup direction={node.direction} class="h-full w-full" onLayoutChange={(sizes) => store.updatePanelSizes(node.id, sizes)}>
       {#each node.children as child, i (child.id)}
         <Pane defaultSize={node.sizes[i] ?? Math.floor(100 / node.children.length)}>
           <LayoutEngine

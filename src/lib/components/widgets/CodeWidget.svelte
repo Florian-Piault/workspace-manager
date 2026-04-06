@@ -42,9 +42,11 @@
   }
 
   // Resynchronise le Compartment quand activeLang change (override manuel ou nouveau fichier)
+  // activeLang est lu avant le conditionnel pour garantir son tracking par Svelte 5
   $effect(() => {
+    const ext = getLangExtension(activeLang);
     if (view) {
-      view.dispatch({ effects: langCompartment.reconfigure(getLangExtension(activeLang)) });
+      view.dispatch({ effects: langCompartment.reconfigure(ext) });
     }
   });
 

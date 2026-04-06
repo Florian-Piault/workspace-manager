@@ -98,6 +98,16 @@ export function flatWidgets(root: Panel): Widget[] {
   return result;
 }
 
+export function updatePanelSizes(root: Panel, targetId: string, sizes: number[]): Panel {
+  if (root.id === targetId) return { ...root, sizes };
+  return {
+    ...root,
+    children: root.children.map((child) =>
+      isPanel(child) ? updatePanelSizes(child, targetId, sizes) : child
+    ),
+  };
+}
+
 export function updateWidgetLabel(root: Panel, targetId: string, label: string): Panel {
   return mapNode(root, targetId, (node) => {
     if (isPanel(node)) return node;

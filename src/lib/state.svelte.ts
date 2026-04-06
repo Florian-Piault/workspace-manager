@@ -6,6 +6,7 @@ import {
   closePanel as closePanelHelper,
   updateNodeConfig as updateNodeConfigHelper,
   updateWidgetLabel as updateWidgetLabelHelper,
+  updatePanelSizes as updatePanelSizesHelper,
   makeInitialRoot,
 } from './layout';
 
@@ -119,6 +120,14 @@ export class WorkspaceStore {
     const layout = this.activeLayout;
     if (!layout) return;
     const newRoot = updateNodeConfigHelper(layout.root, nodeId, config);
+    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this._debouncedSave();
+  }
+
+  updatePanelSizes(nodeId: string, sizes: number[]): void {
+    const layout = this.activeLayout;
+    if (!layout) return;
+    const newRoot = updatePanelSizesHelper(layout.root, nodeId, sizes);
     this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
     this._debouncedSave();
   }
