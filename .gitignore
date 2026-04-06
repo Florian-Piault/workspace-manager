@@ -10,3 +10,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .superpowers/
 .worktrees/
+docs/*
+.claude
+.codesight
+.superpowers
