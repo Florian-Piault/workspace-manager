@@ -40,8 +40,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
-      - name: Install dependencies
-        run: pnpm install
 
       - name: Build frontend and Tauri binary
         uses: tauri-apps/tauri-action@v0
