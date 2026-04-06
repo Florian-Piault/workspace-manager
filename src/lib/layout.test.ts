@@ -70,7 +70,7 @@ describe('closePanel', () => {
     const child = result.children[0] as Widget;
     expect(child.type).toBe('empty');
     // Le root est nouveau (different id car makeInitialRoot génère un UUID)
-    expect(result.id).not.toBe('root');
+    expect(result.id).not.toBe(root.id);
   });
 });
 
