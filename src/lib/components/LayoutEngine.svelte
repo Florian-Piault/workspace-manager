@@ -13,19 +13,23 @@
 </script>
 
 {#if isPanel(node)}
-  <PaneGroup direction={node.direction} class="h-full w-full">
-    {#each node.children as child, i (child.id)}
-      <Pane defaultSize={node.sizes[i] ?? Math.floor(100 / node.children.length)}>
-        <LayoutEngine
-          node={child}
-          isRoot={isRoot && node.children.length === 1}
-        />
-      </Pane>
-      {#if i < node.children.length - 1}
-        <PaneResizer class="{node.direction === 'horizontal' ? 'w-1' : 'h-1'} bg-border hover:bg-primary/50 transition-colors" />
-      {/if}
-    {/each}
-  </PaneGroup>
+  {#if node.children.length === 0}
+    <WidgetPicker nodeId={node.id} />
+  {:else}
+    <PaneGroup direction={node.direction} class="h-full w-full">
+      {#each node.children as child, i (child.id)}
+        <Pane defaultSize={node.sizes[i] ?? Math.floor(100 / node.children.length)}>
+          <LayoutEngine
+            node={child}
+            isRoot={isRoot && node.children.length === 1}
+          />
+        </Pane>
+        {#if i < node.children.length - 1}
+          <PaneResizer class="{node.direction === 'horizontal' ? 'w-1' : 'h-1'} bg-border hover:bg-primary/50 transition-colors" />
+        {/if}
+      {/each}
+    </PaneGroup>
+  {/if}
 {:else}
   <PanelOverlay nodeId={node.id} {isRoot} widget={node as Widget}>
     {#if node.type === 'empty'}
