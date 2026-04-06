@@ -70,6 +70,6 @@ export function updateNodeConfig(
 ): Panel {
   return mapNode(root, targetId, (node) => {
     if (isPanel(node)) return node;
-    return { ...node, config };
+    return { ...node, config: { ...node.config, ...config } };
   });
 }

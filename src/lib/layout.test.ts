@@ -76,7 +76,7 @@ describe('assignWidget', () => {
 
 describe('updateNodeConfig', () => {
   it('met à jour le config du widget ciblé sans changer son type ni son id', () => {
-    const root = p('root', [w('w1', 'terminal')]);
+    const root = p('root', [{ id: 'w1', type: 'terminal' as const, config: {} }]);
     const result = updateNodeConfig(root, 'w1', { scrollback: 'abc123' });
 
     const widget = result.children[0] as Widget;
@@ -91,5 +91,13 @@ describe('updateNodeConfig', () => {
 
     const other = result.children[1] as Widget;
     expect(other.config).toEqual({});
+  });
+
+  it('merge le nouveau config avec le config existant', () => {
+    const root = p('root', [{ id: 'w1', type: 'terminal' as const, config: { theme: 'dark' } }]);
+    const result = updateNodeConfig(root, 'w1', { scrollback: 'abc123' });
+
+    const widget = result.children[0] as Widget;
+    expect(widget.config).toEqual({ theme: 'dark', scrollback: 'abc123' });
   });
 });
