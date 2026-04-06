@@ -24,7 +24,6 @@
     }
   },
   "bundle": {
-    "identifier": "com.piflorian.workspace-manager",
     "active": true,
     "targets": "all",
     "icon": [
