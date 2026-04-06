@@ -29,14 +29,14 @@
   >
     <button
       class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-      onclick={(e) => { e.stopPropagation(); store.splitPanel(nodeId, 'vertical'); }}
+      onclick={(e) => { e.stopPropagation(); store.splitPanel(nodeId, 'horizontal'); }}
       title="Split vertical"
     >
       <Columns2 class="h-3.5 w-3.5" />
     </button>
     <button
       class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-      onclick={(e) => { e.stopPropagation(); store.splitPanel(nodeId, 'horizontal'); }}
+      onclick={(e) => { e.stopPropagation(); store.splitPanel(nodeId, 'vertical'); }}
       title="Split horizontal"
     >
       <Rows2 class="h-3.5 w-3.5" />

@@ -21,12 +21,28 @@ impl PtyManager {
 }
 
 #[tauri::command]
+pub fn pty_get_scrollback(id: String, manager: State<PtyManager>) -> Result<String, String> {
+    let map = manager.0.lock().unwrap();
+    if let Some(handle) = map.get(&id) {
+        let sb = handle.scrollback.lock().unwrap();
+        Ok(STANDARD.encode(&*sb))
+    } else {
+        Ok(String::new())
+    }
+}
+
+#[tauri::command]
 pub fn pty_create(
     id: String,
     cwd: String,
     app: AppHandle,
     manager: State<PtyManager>,
 ) -> Result<String, String> {
+    // PTY déjà existant — remount suite à un split, ne pas recréer
+    if manager.0.lock().unwrap().contains_key(&id) {
+        return Ok(id);
+    }
+
     let pty_system = native_pty_system();
 
     let pair = pty_system

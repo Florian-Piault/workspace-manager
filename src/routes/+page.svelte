@@ -15,11 +15,11 @@
       if (mod && e.key === '\\') {
         e.preventDefault();
         e.stopPropagation();
-        store.splitPanel(store.activePanelId, 'vertical');
+        store.splitPanel(store.activePanelId, 'horizontal');
       } else if (mod && e.key === '-') {
         e.preventDefault();
         e.stopPropagation();
-        store.splitPanel(store.activePanelId, 'horizontal');
+        store.splitPanel(store.activePanelId, 'vertical');
       } else if (mod && e.key === 'w') {
         e.preventDefault();
         e.stopPropagation();

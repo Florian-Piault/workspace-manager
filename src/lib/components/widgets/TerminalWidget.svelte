@@ -5,6 +5,7 @@
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
   import { store } from '$lib/state.svelte';
+  import { nodeExists } from '$lib/layout';
   import '@xterm/xterm/css/xterm.css';
 
   let { config, nodeId }: { config: Record<string, unknown>; nodeId: string } = $props();
@@ -66,19 +67,20 @@
     terminal.open(container);
     fitAddon.fit();
 
-    // Restaurer le scrollback persisté
-    if (config.scrollback && typeof config.scrollback === 'string') {
-      const binary = atob(config.scrollback as string);
-      const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-      terminal.write(bytes);
-    }
-
     terminal.onData((data) => {
       if (!ptyId) return;
       invoke('pty_write', { id: ptyId, data }).catch(() => {});
     });
 
     await startPty(nodeId);
+
+    // Restaurer le scrollback : live (remount après split) > persisté (redémarrage app)
+    const liveScrollback = await invoke<string>('pty_get_scrollback', { id: ptyId }).catch(() => '');
+    const scrollbackSrc = liveScrollback || (config.scrollback as string | undefined) || '';
+    if (scrollbackSrc) {
+      const binary = atob(scrollbackSrc);
+      terminal.write(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+    }
 
     resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
@@ -95,13 +97,18 @@
     unlistenData?.();
     unlistenExit?.();
     if (ptyId) {
-      try {
-        const scrollback = await invoke<string>('pty_kill', { id: ptyId });
-        if (scrollback) {
-          store.updateWidgetConfig(nodeId, { scrollback });
+      // Si le nœud est encore dans le layout, c'est un remount (split) — ne pas tuer le PTY
+      const layout = store.activeLayout;
+      const isRemount = layout ? nodeExists(layout.root, nodeId) : false;
+      if (!isRemount) {
+        try {
+          const scrollback = await invoke<string>('pty_kill', { id: ptyId });
+          if (scrollback) {
+            store.updateWidgetConfig(nodeId, { scrollback });
+          }
+        } catch {
+          // ignorer les erreurs à la fermeture
         }
-      } catch {
-        // ignorer les erreurs à la fermeture
       }
     }
     terminal?.dispose();

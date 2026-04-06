@@ -63,6 +63,14 @@ export function makeInitialRoot(): Panel {
   };
 }
 
+export function nodeExists(root: Panel, targetId: string): boolean {
+  for (const child of root.children) {
+    if (child.id === targetId) return true;
+    if (isPanel(child) && nodeExists(child, targetId)) return true;
+  }
+  return false;
+}
+
 export function updateNodeConfig(
   root: Panel,
   targetId: string,
