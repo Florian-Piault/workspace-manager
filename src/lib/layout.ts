@@ -51,7 +51,11 @@ export function assignWidget(
 }
 
 export function closePanel(root: Panel, targetId: string): Panel {
-  return removeNode(root, targetId);
+  const result = removeNode(root, targetId);
+  if (result.children.length === 0) {
+    return makeInitialRoot();
+  }
+  return result;
 }
 
 export function makeInitialRoot(): Panel {
