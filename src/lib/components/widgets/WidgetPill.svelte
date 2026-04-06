@@ -36,15 +36,15 @@
 
 <div
   class="absolute right-1 top-1 z-10 flex items-center gap-0.5
-         rounded-md bg-background/70 px-1.5 py-0.5 backdrop-blur-sm
-         opacity-0 transition-opacity group-hover:opacity-100 border border-border/50"
+         rounded-md bg-black/60 px-1.5 py-0.5 backdrop-blur-sm
+         opacity-0 transition-opacity group-hover:opacity-100 border border-white/10"
 >
   {#if widget.type === 'terminal'}
-    <Terminal class="h-3 w-3 text-muted-foreground flex-shrink-0" />
+    <Terminal class="h-3 w-3 text-white/60 flex-shrink-0" />
   {:else if widget.type === 'code'}
-    <Code2 class="h-3 w-3 text-muted-foreground flex-shrink-0" />
+    <Code2 class="h-3 w-3 text-white/60 flex-shrink-0" />
   {:else if widget.type === 'browser'}
-    <Globe class="h-3 w-3 text-muted-foreground flex-shrink-0" />
+    <Globe class="h-3 w-3 text-white/60 flex-shrink-0" />
   {/if}
 
   {#if widget.type !== 'empty'}
@@ -58,7 +58,7 @@
       />
     {:else}
       <button
-        class="max-w-[80px] truncate text-xs text-muted-foreground hover:text-foreground"
+        class="max-w-[80px] truncate text-xs text-white/70 hover:text-white"
         onclick={startEdit}
         title="Renommer"
       >
@@ -67,24 +67,24 @@
     {/if}
   {/if}
 
-  <div class="mx-0.5 h-3 w-px bg-border/50"></div>
+  <div class="mx-0.5 h-3 w-px bg-white/20"></div>
 
   <button
-    class="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
     onclick={(e) => { e.stopPropagation(); store.splitPanel(nodeId, 'horizontal'); }}
     title="Split vertical"
   >
     <Columns2 class="h-3 w-3" />
   </button>
   <button
-    class="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
     onclick={(e) => { e.stopPropagation(); store.splitPanel(nodeId, 'vertical'); }}
     title="Split horizontal"
   >
     <Rows2 class="h-3 w-3" />
   </button>
   <button
-    class="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground
+    class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white
            disabled:pointer-events-none disabled:opacity-30"
     disabled={isRoot}
     onclick={(e) => { e.stopPropagation(); store.closePanel(nodeId); }}
