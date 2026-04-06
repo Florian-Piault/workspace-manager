@@ -22,7 +22,7 @@
         />
       </Pane>
       {#if i < node.children.length - 1}
-        <PaneResizer class="w-1 bg-border hover:bg-primary/50 transition-colors" />
+        <PaneResizer class="{node.direction === 'horizontal' ? 'w-1' : 'h-1'} bg-border hover:bg-primary/50 transition-colors" />
       {/if}
     {/each}
   </PaneGroup>
