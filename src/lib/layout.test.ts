@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitPanel, closePanel, assignWidget } from './layout';
+import { splitPanel, closePanel, assignWidget, updateNodeConfig } from './layout';
 import { isPanel } from './types';
 import type { Panel, Widget, PanelNode } from './types';
 
@@ -71,5 +71,25 @@ describe('assignWidget', () => {
     const widget = result.children[0] as Widget;
     expect(widget.id).toBe('w1');
     expect(widget.type).toBe('terminal');
+  });
+});
+
+describe('updateNodeConfig', () => {
+  it('met à jour le config du widget ciblé sans changer son type ni son id', () => {
+    const root = p('root', [w('w1', 'terminal')]);
+    const result = updateNodeConfig(root, 'w1', { scrollback: 'abc123' });
+
+    const widget = result.children[0] as Widget;
+    expect(widget.id).toBe('w1');
+    expect(widget.type).toBe('terminal');
+    expect(widget.config).toEqual({ scrollback: 'abc123' });
+  });
+
+  it('ne modifie pas les autres nœuds', () => {
+    const root = p('root', [w('w1', 'terminal'), w('w2', 'code')]);
+    const result = updateNodeConfig(root, 'w1', { scrollback: 'xyz' });
+
+    const other = result.children[1] as Widget;
+    expect(other.config).toEqual({});
   });
 });

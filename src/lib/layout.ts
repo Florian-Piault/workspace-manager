@@ -62,3 +62,14 @@ export function makeInitialRoot(): Panel {
     children: [{ id: crypto.randomUUID(), type: 'empty', config: {} }],
   };
 }
+
+export function updateNodeConfig(
+  root: Panel,
+  targetId: string,
+  config: Record<string, unknown>
+): Panel {
+  return mapNode(root, targetId, (node) => {
+    if (isPanel(node)) return node;
+    return { ...node, config };
+  });
+}
