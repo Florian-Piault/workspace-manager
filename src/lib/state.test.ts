@@ -139,3 +139,79 @@ describe('WorkspaceStore — layout mutations & debounce', () => {
     expect(layoutCalls).toHaveLength(1);
   });
 });
+
+describe('WorkspaceStore — label, rename, close', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDb.select.mockResolvedValue([]);
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('updateWidgetLabel met à jour le label du widget', async () => {
+    const store = new WorkspaceStore();
+    await store.init();
+    await store.addWorkspace('A', '/a');
+    store.setActiveWorkspace(store.workspaces[0].id);
+
+    const widgetId = store.activeLayout!.root.children[0].id;
+    store.updateWidgetLabel(widgetId, 'mon terminal');
+
+    const widget = store.activeLayout!.root.children[0] as import('./types').Widget;
+    expect(widget.label).toBe('mon terminal');
+  });
+
+  it('updateWidgetLabel avec chaîne vide supprime le label', async () => {
+    const store = new WorkspaceStore();
+    await store.init();
+    await store.addWorkspace('A', '/a');
+    store.setActiveWorkspace(store.workspaces[0].id);
+
+    const widgetId = store.activeLayout!.root.children[0].id;
+    store.updateWidgetLabel(widgetId, 'old');
+    store.updateWidgetLabel(widgetId, '');
+
+    const widget = store.activeLayout!.root.children[0] as import('./types').Widget;
+    expect(widget.label).toBeUndefined();
+  });
+
+  it('renameWorkspace met à jour le nom en mémoire et en DB', async () => {
+    const store = new WorkspaceStore();
+    await store.init();
+    await store.addWorkspace('Ancien', '/a');
+
+    await store.renameWorkspace(store.workspaces[0].id, 'Nouveau');
+
+    expect(store.workspaces[0].name).toBe('Nouveau');
+    expect(mockDb.execute).toHaveBeenCalledWith(
+      'UPDATE workspaces SET name = ? WHERE id = ?',
+      ['Nouveau', store.workspaces[0].id]
+    );
+  });
+
+  it('closeWorkspace supprime le workspace et son layout', async () => {
+    const store = new WorkspaceStore();
+    await store.init();
+    await store.addWorkspace('A', '/a');
+    store.setActiveWorkspace(store.workspaces[0].id);
+    await vi.advanceTimersByTimeAsync(1000); // flush save
+
+    const wsId = store.workspaces[0].id;
+    const layoutId = store.workspaces[0].layoutId;
+    await store.closeWorkspace(wsId);
+
+    expect(store.workspaces).toHaveLength(0);
+    expect(store.activeWorkspaceId).toBeNull();
+    expect(mockDb.execute).toHaveBeenCalledWith(
+      'DELETE FROM workspaces WHERE id = ?', [wsId]
+    );
+    if (layoutId) {
+      expect(mockDb.execute).toHaveBeenCalledWith(
+        'DELETE FROM layouts WHERE id = ?', [layoutId]
+      );
+    }
+  });
+});

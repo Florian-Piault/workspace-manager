@@ -5,6 +5,7 @@ import {
   assignWidget as assignWidgetHelper,
   closePanel as closePanelHelper,
   updateNodeConfig as updateNodeConfigHelper,
+  updateWidgetLabel as updateWidgetLabelHelper,
   makeInitialRoot,
 } from './layout';
 
@@ -118,6 +119,36 @@ export class WorkspaceStore {
     const newRoot = updateNodeConfigHelper(layout.root, nodeId, config);
     this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
     this._debouncedSave();
+  }
+
+  updateWidgetLabel(nodeId: string, label: string): void {
+    const layout = this.activeLayout;
+    if (!layout) return;
+    const newRoot = updateWidgetLabelHelper(layout.root, nodeId, label);
+    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this._debouncedSave();
+  }
+
+  async renameWorkspace(workspaceId: string, name: string): Promise<void> {
+    this.workspaces = this.workspaces.map((w) =>
+      w.id === workspaceId ? { ...w, name } : w
+    );
+    await this.db!.execute('UPDATE workspaces SET name = ? WHERE id = ?', [name, workspaceId]);
+  }
+
+  async closeWorkspace(workspaceId: string): Promise<void> {
+    const ws = this.workspaces.find((w) => w.id === workspaceId);
+    if (!ws) return;
+
+    if (ws.layoutId) {
+      const { [ws.layoutId]: _, ...rest } = this.layouts;
+      this.layouts = rest;
+      await this.db!.execute('DELETE FROM layouts WHERE id = ?', [ws.layoutId]);
+    }
+
+    this.workspaces = this.workspaces.filter((w) => w.id !== workspaceId);
+    if (this.activeWorkspaceId === workspaceId) this.activeWorkspaceId = null;
+    await this.db!.execute('DELETE FROM workspaces WHERE id = ?', [workspaceId]);
   }
 
   private _debouncedSave(): void {
