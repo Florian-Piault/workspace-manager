@@ -1,0 +1,112 @@
+<script lang="ts">
+  import { ChevronRight, ChevronDown, X, Terminal, Code2, Globe } from '@lucide/svelte';
+  import { store } from '$lib/state.svelte';
+  import { flatWidgets } from '$lib/layout';
+  import type { Workspace } from '$lib/types';
+
+  let { workspace }: { workspace: Workspace } = $props();
+
+  let collapsed = $state(false);
+  let renamingWorkspace = $state(false);
+  let workspaceDraft = $state('');
+
+  const layout = $derived(
+    workspace.layoutId ? (store.layouts[workspace.layoutId] ?? null) : null
+  );
+  const widgets = $derived(layout ? flatWidgets(layout.root) : []);
+
+  function startRenameWorkspace() {
+    workspaceDraft = workspace.name;
+    renamingWorkspace = true;
+  }
+
+  function confirmRenameWorkspace() {
+    renamingWorkspace = false;
+    const trimmed = workspaceDraft.trim();
+    if (trimmed && trimmed !== workspace.name) {
+      store.renameWorkspace(workspace.id, trimmed);
+    }
+  }
+
+  function handleWorkspaceKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') confirmRenameWorkspace();
+    if (e.key === 'Escape') renamingWorkspace = false;
+  }
+</script>
+
+<li>
+  <!-- Workspace header -->
+  <div class="flex items-center gap-1 px-2 py-1.5 group/ws hover:bg-accent/50">
+    <button
+      class="p-0.5 text-muted-foreground hover:text-foreground"
+      onclick={() => (collapsed = !collapsed)}
+      aria-label={collapsed ? 'Développer' : 'Réduire'}
+    >
+      {#if collapsed}
+        <ChevronRight class="h-3.5 w-3.5" />
+      {:else}
+        <ChevronDown class="h-3.5 w-3.5" />
+      {/if}
+    </button>
+
+    {#if renamingWorkspace}
+      <input
+        class="flex-1 bg-transparent text-sm text-foreground outline-none"
+        bind:value={workspaceDraft}
+        onblur={confirmRenameWorkspace}
+        onkeydown={handleWorkspaceKeydown}
+        autofocus
+      />
+    {:else}
+      <button
+        class="flex-1 truncate text-left text-sm font-medium
+               {store.activeWorkspaceId === workspace.id ? 'text-foreground' : 'text-muted-foreground'}
+               hover:text-foreground"
+        onclick={() => store.setActiveWorkspace(workspace.id)}
+        ondblclick={startRenameWorkspace}
+        title="Cliquer pour activer, double-cliquer pour renommer"
+      >
+        {workspace.name}
+      </button>
+    {/if}
+
+    <button
+      class="hidden group-hover/ws:flex p-0.5 text-muted-foreground hover:text-destructive"
+      onclick={() => store.closeWorkspace(workspace.id)}
+      title="Fermer le workspace"
+    >
+      <X class="h-3.5 w-3.5" />
+    </button>
+  </div>
+
+  <!-- Widget list -->
+  {#if !collapsed}
+    <ul class="pb-1">
+      {#each widgets as widget (widget.id)}
+        <li class="flex items-center gap-1.5 px-6 py-1 group/widget hover:bg-accent/30">
+          {#if widget.type === 'terminal'}
+            <Terminal class="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+          {:else if widget.type === 'code'}
+            <Code2 class="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+          {:else if widget.type === 'browser'}
+            <Globe class="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+          {/if}
+          <span class="flex-1 truncate text-xs text-muted-foreground">
+            {widget.label ?? widget.type}
+          </span>
+          <button
+            class="hidden group-hover/widget:flex p-0.5 text-muted-foreground hover:text-destructive"
+            onclick={() => store.closePanel(widget.id)}
+            title="Fermer le widget"
+          >
+            <X class="h-3 w-3" />
+          </button>
+        </li>
+      {/each}
+
+      {#if widgets.length === 0}
+        <li class="px-6 py-1 text-xs text-muted-foreground/50">Aucun widget</li>
+      {/if}
+    </ul>
+  {/if}
+</li>
