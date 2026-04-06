@@ -62,11 +62,19 @@ pub fn pty_create(
                 Ok(n) => {
                     let chunk = &buf[..n];
                     {
-                        let mut sb = scrollback_clone.lock().unwrap();
+                        let mut sb = match scrollback_clone.lock() {
+                            Ok(guard) => guard,
+                            Err(e) => e.into_inner(),
+                        };
                         sb.extend_from_slice(chunk);
                         if sb.len() > 51_200 {
                             let excess = sb.len() - 51_200;
-                            sb.drain(..excess);
+                            // Trouver la frontière UTF-8 valide la plus proche après `excess`
+                            let mut drain_to = excess;
+                            while drain_to < sb.len() && (sb[drain_to] & 0xC0) == 0x80 {
+                                drain_to += 1;
+                            }
+                            sb.drain(..drain_to);
                         }
                     }
                     let data = String::from_utf8_lossy(chunk).to_string();
@@ -125,8 +133,8 @@ pub fn pty_resize(
 
 #[tauri::command]
 pub fn pty_kill(id: String, manager: State<PtyManager>) -> Result<String, String> {
-    let mut map = manager.0.lock().unwrap();
-    if let Some(handle) = map.remove(&id) {
+    let handle = manager.0.lock().unwrap().remove(&id);
+    if let Some(handle) = handle {
         let sb = handle.scrollback.lock().unwrap();
         Ok(STANDARD.encode(&*sb))
     } else {
