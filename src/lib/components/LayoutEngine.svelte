@@ -1,7 +1,7 @@
 <script lang="ts">
   import { PaneGroup, Pane, PaneResizer } from 'paneforge';
   import { isPanel } from '$lib/types';
-  import type { PanelNode } from '$lib/types';
+  import type { PanelNode, Widget } from '$lib/types';
   import CodeWidget from './widgets/CodeWidget.svelte';
   import TerminalWidget from './widgets/TerminalWidget.svelte';
   import BrowserWidget from './widgets/BrowserWidget.svelte';
@@ -27,7 +27,7 @@
     {/each}
   </PaneGroup>
 {:else}
-  <PanelOverlay nodeId={node.id} {isRoot}>
+  <PanelOverlay nodeId={node.id} {isRoot} widget={node as Widget}>
     {#if node.type === 'empty'}
       <WidgetPicker nodeId={node.id} />
     {:else if node.type === 'code'}
