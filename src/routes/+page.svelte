@@ -11,20 +11,24 @@
 
     function handleKeydown(e: KeyboardEvent) {
       if (!store.activePanelId) return;
-      if (e.ctrlKey && e.key === '\\') {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key === '\\') {
         e.preventDefault();
+        e.stopPropagation();
         store.splitPanel(store.activePanelId, 'vertical');
-      } else if (e.ctrlKey && e.key === '-') {
+      } else if (mod && e.key === '-') {
         e.preventDefault();
+        e.stopPropagation();
         store.splitPanel(store.activePanelId, 'horizontal');
-      } else if (e.ctrlKey && e.key === 'w') {
+      } else if (mod && e.key === 'w') {
         e.preventDefault();
+        e.stopPropagation();
         store.closePanel(store.activePanelId);
       }
     }
 
-    window.addEventListener('keydown', handleKeydown);
-    return () => window.removeEventListener('keydown', handleKeydown);
+    window.addEventListener('keydown', handleKeydown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeydown, { capture: true });
   });
 </script>
 

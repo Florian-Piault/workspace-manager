@@ -139,16 +139,11 @@ export class WorkspaceStore {
     const config = JSON.stringify(root);
     let layoutId: string;
 
-    if (ws.layoutId) {
-      layoutId = ws.layoutId;
-      await this.db!.execute('UPDATE layouts SET config = ? WHERE id = ?', [config, layoutId]);
-    } else {
-      layoutId = crypto.randomUUID();
-      await this.db!.execute(
-        'INSERT INTO layouts (id, workspace_id, config) VALUES (?, ?, ?)',
-        [layoutId, workspaceId, config]
-      );
-    }
+    layoutId = ws.layoutId ?? crypto.randomUUID();
+    await this.db!.execute(
+      'INSERT OR REPLACE INTO layouts (id, workspace_id, config) VALUES (?, ?, ?)',
+      [layoutId, workspaceId, config]
+    );
 
     const layout: Layout = { id: layoutId, workspaceId, root };
     this.layouts = { ...this.layouts, [layoutId]: layout };
