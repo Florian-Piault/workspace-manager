@@ -35,7 +35,7 @@
     {#if node.type === 'empty'}
       <WidgetPicker nodeId={node.id} />
     {:else if node.type === 'code'}
-      <CodeWidget config={node.config} />
+      <CodeWidget config={node.config} nodeId={node.id} />
     {:else if node.type === 'terminal'}
       <TerminalWidget config={node.config} nodeId={node.id} />
     {:else if node.type === 'browser'}
