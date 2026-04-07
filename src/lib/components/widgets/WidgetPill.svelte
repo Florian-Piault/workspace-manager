@@ -37,7 +37,7 @@
 <div
   class="absolute right-1 top-1 z-10 flex items-center gap-0.5
          rounded-md bg-black/60 px-1.5 py-0.5 backdrop-blur-sm
-         opacity-0 transition-opacity group-hover:opacity-100 border border-white/10"
+         opacity-20 transition-opacity group-hover:opacity-100 border border-white/10"
 >
   {#if widget.type === 'terminal'}
     <Terminal class="h-3 w-3 text-white/60 flex-shrink-0" />
@@ -58,9 +58,10 @@
       />
     {:else}
       <button
-        class="max-w-[80px] truncate text-xs text-white/70 hover:text-white"
+        class="max-w-[140px] truncate text-xs text-white/70 hover:text-white"
         onclick={startEdit}
-        title="Renommer"
+        title="Double-cliquer pour renommer"
+        ondblclick={startEdit}
       >
         {displayLabel}
       </button>

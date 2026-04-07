@@ -15,3 +15,5 @@ docs/*
 .codesight
 .superpowers
 CLAUDE.md
+.cursor/*
+.trellis/*

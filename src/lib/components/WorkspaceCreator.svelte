@@ -3,15 +3,21 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import * as Popover from '$lib/components/ui/popover';
-  import { Plus } from '@lucide/svelte';
+  import { Plus, FolderOpen } from '@lucide/svelte';
+  import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
   let name = $state('');
   let path = $state('');
   let open = $state(false);
 
+  async function browsePath() {
+    const selected = await openDialog({ directory: true, multiple: false });
+    if (selected) path = selected;
+  }
+
   async function handleCreate() {
-    if (!name.trim() || !path.trim()) return;
-    await store.addWorkspace(name.trim(), path.trim());
+    if (!name.trim() || !path) return;
+    await store.addWorkspace(name.trim(), path);
     name = '';
     path = '';
     open = false;
@@ -20,11 +26,20 @@
 
 <Popover.Root bind:open>
   <Popover.Trigger>
-    <Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" title="Nouveau workspace">
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-7 w-7 shrink-0"
+      title="Nouveau workspace"
+    >
       <Plus class="h-4 w-4" />
     </Button>
   </Popover.Trigger>
-  <Popover.Content class="w-72 p-4" align="start">
+  <Popover.Content
+    class="w-72 p-4"
+    align="start"
+    onkeypress={e => e.key === 'Enter' && handleCreate()}
+  >
     <div class="flex flex-col gap-3">
       <p class="text-sm font-semibold">Nouveau workspace</p>
       <div class="flex flex-col gap-1.5">
@@ -32,11 +47,23 @@
         <Input id="ws-name" bind:value={name} placeholder="Mon Projet" />
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs text-muted-foreground" for="ws-path">Chemin</label>
-        <Input id="ws-path" bind:value={path} placeholder="/Users/me/mon-projet" />
+        <span class="text-xs text-muted-foreground">Dossier</span>
+        <button
+          class="flex items-center gap-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm
+                 hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+          onclick={browsePath}
+          type="button"
+        >
+          <FolderOpen class="h-4 w-4 shrink-0 text-muted-foreground" />
+          {#if path}
+            <span class="truncate text-foreground">{path}</span>
+          {:else}
+            <span class="text-muted-foreground">Parcourir…</span>
+          {/if}
+        </button>
       </div>
       <Button
-        disabled={!name.trim() || !path.trim()}
+        disabled={!name.trim() || !path}
         onclick={handleCreate}
         class="w-full"
       >

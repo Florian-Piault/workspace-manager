@@ -39,8 +39,12 @@
     {#if store.activeLayout}
       <LayoutEngine node={store.activeLayout.root} isRoot={true} />
     {:else}
-      <div class="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-        <p class="text-sm">Sélectionne un workspace dans la sidebar pour commencer.</p>
+      <div class="flex h-full flex-col items-center justify-center gap-4 text-muted-foreground select-none">
+        <div class="flex flex-col items-center gap-2">
+          <p class="text-sm font-medium text-foreground">Aucun workspace actif</p>
+          <p class="text-xs">Sélectionne un workspace dans la barre latérale</p>
+          <p class="text-xs">ou crée-en un avec le bouton <kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono">+</kbd></p>
+        </div>
       </div>
     {/if}
   </main>

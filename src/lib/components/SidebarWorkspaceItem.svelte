@@ -36,7 +36,8 @@
 
 <li>
   <!-- Workspace header -->
-  <div class="flex items-center gap-1 px-2 py-1.5 group/ws hover:bg-accent/50">
+  <div class="flex items-center gap-1 px-2 py-1.5 group/ws hover:bg-accent/50
+             {store.activeWorkspaceId === workspace.id ? 'border-l-2 border-primary pl-[6px]' : 'border-l-2 border-transparent pl-[6px]'}">
     <button
       class="p-0.5 text-muted-foreground hover:text-foreground"
       onclick={() => (collapsed = !collapsed)}
@@ -83,17 +84,22 @@
   {#if !collapsed}
     <ul class="pb-1">
       {#each widgets as widget (widget.id)}
-        <li class="flex items-center gap-1.5 px-6 py-1 group/widget hover:bg-accent/30">
-          {#if widget.type === 'terminal'}
-            <Terminal class="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-          {:else if widget.type === 'code'}
-            <Code2 class="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-          {:else if widget.type === 'browser'}
-            <Globe class="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-          {/if}
-          <span class="flex-1 truncate text-xs text-muted-foreground">
-            {widget.label ?? widget.type}
-          </span>
+        <li class="group/widget flex items-center gap-1.5 px-6 py-1 {store.activePanelId === widget.id ? 'bg-accent/40' : 'hover:bg-accent/30'}">
+          <button
+            class="flex flex-1 min-w-0 items-center gap-1.5 text-left"
+            onclick={() => { store.setActiveWorkspace(workspace.id); store.setActivePanel(widget.id); }}
+          >
+            {#if widget.type === 'terminal'}
+              <Terminal class="h-3 w-3 flex-shrink-0 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
+            {:else if widget.type === 'code'}
+              <Code2 class="h-3 w-3 flex-shrink-0 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
+            {:else if widget.type === 'browser'}
+              <Globe class="h-3 w-3 flex-shrink-0 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
+            {/if}
+            <span class="flex-1 truncate text-xs {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}">
+              {widget.label ?? widget.type}
+            </span>
+          </button>
           <button
             class="hidden group-hover/widget:flex p-0.5 text-muted-foreground hover:text-destructive"
             onclick={() => store.closePanel(widget.id)}
