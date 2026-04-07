@@ -7,8 +7,12 @@ import {
   updateNodeConfig as updateNodeConfigHelper,
   updateWidgetLabel as updateWidgetLabelHelper,
   updatePanelSizes as updatePanelSizesHelper,
+  moveWidgetNode as moveWidgetNodeHelper,
   makeInitialRoot,
+  type DropSide,
 } from './layout';
+
+export type { DropSide };
 
 export class WorkspaceStore {
   workspaces = $state<Workspace[]>([]);
@@ -17,6 +21,9 @@ export class WorkspaceStore {
   layouts = $state<Record<string, Layout>>({});
   savingWidgets = $state<Set<string>>(new Set());
   maximizedPanelId = $state<string | null>(null);
+  draggingWidgetId = $state<string | null>(null);
+  dragHoverTargetId = $state<string | null>(null);
+  dragHoverSide = $state<DropSide | null>(null);
 
   activeWorkspace = $derived(
     this.workspaces.find((w) => w.id === this.activeWorkspaceId) ?? null
@@ -151,6 +158,42 @@ export class WorkspaceStore {
 
   toggleMaximize(nodeId: string): void {
     this.maximizedPanelId = this.maximizedPanelId === nodeId ? null : nodeId;
+  }
+
+  startDrag(widgetId: string): void {
+    this.draggingWidgetId = widgetId;
+    this.dragHoverTargetId = null;
+    this.dragHoverSide = null;
+  }
+
+  endDrag(): void {
+    this.draggingWidgetId = null;
+    this.dragHoverTargetId = null;
+    this.dragHoverSide = null;
+  }
+
+  setDragHover(targetId: string | null, side: DropSide | null): void {
+    this.dragHoverTargetId = targetId;
+    this.dragHoverSide = side;
+  }
+
+  dropWidget(targetId: string, side: DropSide, sourceIdFromDrop: string | null = null): void {
+    const sourceId = sourceIdFromDrop ?? this.draggingWidgetId;
+    if (!sourceId || sourceId === targetId) {
+      this.draggingWidgetId = null;
+      return;
+    }
+    const layout = this.activeLayout;
+    if (!layout) {
+      this.draggingWidgetId = null;
+      return;
+    }
+    const newRoot = moveWidgetNodeHelper(layout.root, sourceId, targetId, side);
+    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this.draggingWidgetId = null;
+    this.dragHoverTargetId = null;
+    this.dragHoverSide = null;
+    this._debouncedSave();
   }
 
   reorderWorkspaces(newOrder: Workspace[]): void {

@@ -114,3 +114,48 @@ export function updateWidgetLabel(root: Panel, targetId: string, label: string):
     return { ...(node as Widget), label: label || undefined };
   });
 }
+
+export type DropSide = 'top' | 'bottom' | 'left' | 'right' | 'center';
+
+function findWidgetById(panel: Panel, id: string): Widget | null {
+  for (const child of panel.children) {
+    if (!isPanel(child) && child.id === id) return child;
+    if (isPanel(child)) {
+      const found = findWidgetById(child, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+export function swapWidgetContents(root: Panel, idA: string, idB: string): Panel {
+  const a = findWidgetById(root, idA);
+  const b = findWidgetById(root, idB);
+  if (!a || !b) return root;
+  let result = mapNode(root, idA, () => ({ id: idA, type: b.type, config: b.config, label: b.label }));
+  result = mapNode(result, idB, () => ({ id: idB, type: a.type, config: a.config, label: a.label }));
+  return result;
+}
+
+export function moveWidgetNode(root: Panel, sourceId: string, targetId: string, side: DropSide): Panel {
+  if (side === 'center') return swapWidgetContents(root, sourceId, targetId);
+
+  const sourceWidget = findWidgetById(root, sourceId);
+  if (!sourceWidget) return root;
+
+  const direction = side === 'left' || side === 'right' ? 'horizontal' : 'vertical';
+  const sourceFirst = side === 'left' || side === 'top';
+  const movedWidget: Widget = { ...sourceWidget, id: crypto.randomUUID() };
+
+  // Remove source (collapses single-child panels automatically)
+  const withoutSource = removeNode(root, sourceId);
+  if (withoutSource.children.length === 0) return makeInitialRoot();
+
+  // Wrap target in a new panel alongside the moved widget
+  return mapNode(withoutSource, targetId, (target) => ({
+    id: crypto.randomUUID(),
+    direction,
+    sizes: [50, 50],
+    children: sourceFirst ? [movedWidget, target] : [target, movedWidget],
+  } as Panel));
+}
