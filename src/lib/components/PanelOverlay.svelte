@@ -3,6 +3,7 @@
   import { onDestroy } from 'svelte';
   import type { Snippet } from 'svelte';
   import type { Widget } from '$lib/types';
+  import { GripVertical } from '@lucide/svelte';
   import WidgetPill from './widgets/WidgetPill.svelte';
 
   let {
@@ -75,6 +76,13 @@
     cleanupPointerDrag();
   }
 
+  function handleContainerKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      store.setActivePanel(nodeId);
+    }
+  }
+
   onDestroy(() => {
     cleanupPointerDrag();
   });
@@ -84,7 +92,9 @@
 <div
   class="group relative h-full w-full {isActive ? 'ring-1 ring-primary ring-inset' : ''}"
   onclick={() => store.setActivePanel(nodeId)}
-  role="group"
+  onkeydown={handleContainerKeydown}
+  role="button"
+  tabindex="0"
 >
   {@render children()}
   <WidgetPill {nodeId} {widget} {isRoot} />
@@ -92,7 +102,7 @@
   <!-- Drag handle — always in DOM, opacity-controlled -->
   <div
     onpointerdown={handleHandlePointerDown}
-    class="absolute top-1 left-1 z-20 flex cursor-grab active:cursor-grabbing items-center justify-center w-8 h-8 rounded
+    class="absolute top-1 left-1 z-20 flex cursor-grab active:cursor-grabbing items-center justify-center w-5 h-5 rounded
            opacity-90 hover:opacity-100 transition-opacity select-none
            text-muted-foreground hover:text-foreground hover:bg-accent/60"
     title="Déplacer le widget"
@@ -100,14 +110,7 @@
     tabindex="-1"
     aria-label="Déplacer le widget"
   >
-    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <circle cx="7" cy="4"  r="1.8"/>
-      <circle cx="13" cy="4" r="1.8"/>
-      <circle cx="7" cy="10" r="1.8"/>
-      <circle cx="13" cy="10" r="1.8"/>
-      <circle cx="7" cy="16" r="1.8"/>
-      <circle cx="13" cy="16" r="1.8"/>
-    </svg>
+    <GripVertical class="h-3 w-3" aria-hidden="true" />
   </div>
 
   <!-- Drop zones — visible only during native drag (body.dnd-active) -->
