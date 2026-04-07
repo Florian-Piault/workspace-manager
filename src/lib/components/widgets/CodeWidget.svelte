@@ -165,7 +165,7 @@
     <div bind:this={editorContainer} class="h-full w-full overflow-auto"></div>
 
     {#if fileError}
-      <div class="absolute inset-0 flex items-center justify-center bg-black/60">
+      <div class="absolute inset-0 flex items-center justify-center bg-background/80">
         <div class="flex max-w-sm flex-col items-center gap-3 rounded-lg border border-destructive/50 bg-card p-6">
           <p class="text-center text-sm text-destructive">Impossible de lire le fichier :</p>
           <code class="text-center text-xs text-muted-foreground break-all">{fileError}</code>
