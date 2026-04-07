@@ -89,20 +89,25 @@
             class="flex flex-1 min-w-0 items-center gap-1.5 text-left"
             onclick={() => { store.setActiveWorkspace(workspace.id); store.setActivePanel(widget.id); }}
           >
-            {#if widget.type === 'terminal'}
-              <Terminal class="h-3 w-3 flex-shrink-0 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
-            {:else if widget.type === 'code'}
-              <Code2 class="h-3 w-3 flex-shrink-0 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
-            {:else if widget.type === 'browser'}
-              <Globe class="h-3 w-3 flex-shrink-0 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
-            {/if}
+            <span class="relative flex-shrink-0">
+              {#if widget.type === 'terminal'}
+                <Terminal class="h-3 w-3 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
+              {:else if widget.type === 'code'}
+                <Code2 class="h-3 w-3 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
+              {:else if widget.type === 'browser'}
+                <Globe class="h-3 w-3 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
+              {/if}
+              {#if store.savingWidgets.has(widget.id)}
+                <span class="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-primary"></span>
+              {/if}
+            </span>
             <span class="flex-1 truncate text-xs {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}">
               {widget.label ?? widget.type}
             </span>
           </button>
           <button
             class="hidden group-hover/widget:flex p-0.5 text-muted-foreground hover:text-destructive"
-            onclick={() => store.closePanel(widget.id)}
+            onclick={() => store.closePanelInWorkspace(workspace.id, widget.id)}
             title="Fermer le widget"
           >
             <X class="h-3 w-3" />

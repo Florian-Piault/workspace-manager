@@ -15,6 +15,8 @@ export class WorkspaceStore {
   activeWorkspaceId = $state<string | null>(null);
   activePanelId = $state<string | null>(null);
   layouts = $state<Record<string, Layout>>({});
+  savingWidgets = $state<Set<string>>(new Set());
+  maximizedPanelId = $state<string | null>(null);
 
   activeWorkspace = $derived(
     this.workspaces.find((w) => w.id === this.activeWorkspaceId) ?? null
@@ -44,6 +46,17 @@ export class WorkspaceStore {
       ...r,
       layoutId: layoutByWorkspace.get(r.id)?.id ?? null,
     }));
+
+    // Apply saved workspace order from localStorage
+    try {
+      const saved = localStorage.getItem('ws-order');
+      if (saved) {
+        const ids: string[] = JSON.parse(saved);
+        const ordered = ids.flatMap((id) => this.workspaces.filter((w) => w.id === id));
+        const rest = this.workspaces.filter((w) => !ids.includes(w.id));
+        this.workspaces = [...ordered, ...rest];
+      }
+    } catch { /* ignore */ }
 
     for (const row of layoutRows) {
       const parsed = JSON.parse(row.config);
@@ -114,6 +127,37 @@ export class WorkspaceStore {
     this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
     if (this.activePanelId === nodeId) this.activePanelId = null;
     this._debouncedSave();
+  }
+
+  closePanelInWorkspace(workspaceId: string, nodeId: string): void {
+    const ws = this.workspaces.find((w) => w.id === workspaceId);
+    if (!ws?.layoutId) return;
+    const layout = this.layouts[ws.layoutId];
+    if (!layout) return;
+    const newRoot = closePanelHelper(layout.root, nodeId);
+    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    if (this.activePanelId === nodeId) this.activePanelId = null;
+    this.saveLayout(workspaceId, newRoot).catch((err) => {
+      console.error('[WorkspaceStore] closePanelInWorkspace save failed:', err);
+    });
+  }
+
+  setSaving(nodeId: string, saving: boolean): void {
+    const next = new Set(this.savingWidgets);
+    if (saving) next.add(nodeId);
+    else next.delete(nodeId);
+    this.savingWidgets = next;
+  }
+
+  toggleMaximize(nodeId: string): void {
+    this.maximizedPanelId = this.maximizedPanelId === nodeId ? null : nodeId;
+  }
+
+  reorderWorkspaces(newOrder: Workspace[]): void {
+    this.workspaces = [...newOrder];
+    try {
+      localStorage.setItem('ws-order', JSON.stringify(newOrder.map((w) => w.id)));
+    } catch { /* ignore */ }
   }
 
   updateWidgetConfig(nodeId: string, config: Record<string, unknown>): void {

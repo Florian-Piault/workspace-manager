@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Columns2, Rows2, X, Terminal, Code2, Globe } from '@lucide/svelte';
+  import { Columns2, Rows2, X, Maximize2, Minimize2, Terminal, Code2, Globe } from '@lucide/svelte';
   import { store } from '$lib/state.svelte';
   import type { Widget } from '$lib/types';
 
@@ -69,6 +69,18 @@
   {/if}
 
   <div class="mx-0.5 h-3 w-px bg-white/20"></div>
+
+  <button
+    class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
+    onclick={(e) => { e.stopPropagation(); store.toggleMaximize(nodeId); }}
+    title={store.maximizedPanelId === nodeId ? 'Restaurer' : 'Maximiser'}
+  >
+    {#if store.maximizedPanelId === nodeId}
+      <Minimize2 class="h-3 w-3" />
+    {:else}
+      <Maximize2 class="h-3 w-3" />
+    {/if}
+  </button>
 
   <button
     class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"

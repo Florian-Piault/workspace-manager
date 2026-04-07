@@ -11,6 +11,7 @@
   import { oneDark } from '@codemirror/theme-one-dark';
   import { store } from '$lib/state.svelte';
   import { detectLanguage } from '$lib/utils/language-detect';
+  import * as Select from '$lib/components/ui/select';
 
   let { config, nodeId }: { config: Record<string, unknown>; nodeId: string } = $props();
 
@@ -19,7 +20,6 @@
   const langCompartment = new Compartment();
 
   let loading = $state(false);
-  let saving = $state(false);
   let fileError = $state<string | null>(null);
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -78,13 +78,13 @@
     if (saveTimer !== null) clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
       saveTimer = null;
-      saving = true;
+      store.setSaving(nodeId, true);
       try {
         await invoke('write_file', { path: filePath, content });
       } catch (err) {
         console.error('[CodeWidget] write_file failed:', err);
       } finally {
-        saving = false;
+        store.setSaving(nodeId, false);
       }
     }, 1000);
   }
@@ -129,15 +129,18 @@
 <div class="flex h-full w-full flex-col overflow-hidden">
   <!-- Header -->
   <div class="flex h-8 shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-2">
-    <select
-      class="bg-transparent text-xs text-muted-foreground outline-none cursor-pointer hover:text-foreground transition-colors"
+    <Select.Root
+      type="single"
       value={activeLang}
-      onchange={(e) => setLanguageOverride((e.target as HTMLSelectElement).value)}
+      onValueChange={(v) => setLanguageOverride(v)}
     >
-      {#each SUPPORTED_LANGUAGES as lang}
-        <option value={lang}>{lang}</option>
-      {/each}
-    </select>
+      <Select.Trigger>{activeLang}</Select.Trigger>
+      <Select.Content>
+        {#each SUPPORTED_LANGUAGES as lang}
+          <Select.Item value={lang} label={lang} />
+        {/each}
+      </Select.Content>
+    </Select.Root>
 
     <button
       class="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -151,7 +154,7 @@
       {fileName ?? 'Aucun fichier'}
     </span>
 
-    {#if saving}
+    {#if store.savingWidgets.has(nodeId)}
       <span class="text-xs text-muted-foreground/60">Sauvegarde…</span>
     {/if}
 

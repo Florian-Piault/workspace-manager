@@ -1,8 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { store } from '$lib/state.svelte';
+  import { flatWidgets } from '$lib/layout';
   import Sidebar from '$lib/components/Sidebar.svelte';
   import LayoutEngine from '$lib/components/LayoutEngine.svelte';
+  import PanelOverlay from '$lib/components/PanelOverlay.svelte';
+  import CodeWidget from '$lib/components/widgets/CodeWidget.svelte';
+  import TerminalWidget from '$lib/components/widgets/TerminalWidget.svelte';
+  import BrowserWidget from '$lib/components/widgets/BrowserWidget.svelte';
+
+  const maximizedWidget = $derived(
+    store.maximizedPanelId && store.activeLayout
+      ? (flatWidgets(store.activeLayout.root).find((w) => w.id === store.maximizedPanelId) ?? null)
+      : null
+  );
 
   onMount(() => {
     store.init().catch((err) => {
@@ -45,6 +56,21 @@
           <p class="text-xs">Sélectionne un workspace dans la barre latérale</p>
           <p class="text-xs">ou crée-en un avec le bouton <kbd class="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono">+</kbd></p>
         </div>
+      </div>
+    {/if}
+
+    <!-- Overlay maximize -->
+    {#if maximizedWidget}
+      <div class="absolute inset-0 z-40 bg-background">
+        <PanelOverlay nodeId={maximizedWidget.id} widget={maximizedWidget} isRoot={true}>
+          {#if maximizedWidget.type === 'code'}
+            <CodeWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
+          {:else if maximizedWidget.type === 'terminal'}
+            <TerminalWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
+          {:else if maximizedWidget.type === 'browser'}
+            <BrowserWidget config={maximizedWidget.config} />
+          {/if}
+        </PanelOverlay>
       </div>
     {/if}
   </main>
