@@ -1,9 +1,7 @@
 <script lang="ts">
-  import { store, type DropSide } from '$lib/state.svelte';
-  import { onDestroy } from 'svelte';
+  import { store } from '$lib/state.svelte';
   import type { Snippet } from 'svelte';
   import type { Widget } from '$lib/types';
-  import { GripVertical } from '@lucide/svelte';
   import WidgetPill from './widgets/WidgetPill.svelte';
 
   let {
@@ -20,61 +18,6 @@
 
   const isActive = $derived(store.activePanelId === nodeId);
   const hoverSide = $derived(store.dragHoverTargetId === nodeId ? store.dragHoverSide : null);
-  let pointerDragSourceId: string | null = null;
-
-  function cleanupPointerDrag() {
-    window.removeEventListener('pointerup', handleGlobalPointerUp, true);
-    window.removeEventListener('pointermove', handleGlobalPointerMove, true);
-    window.removeEventListener('pointercancel', handleGlobalPointerCancel, true);
-    document.body.classList.remove('dnd-active');
-    document.body.classList.remove('dnd-pointer-active');
-    pointerDragSourceId = null;
-    store.endDrag();
-  }
-
-  function handleHandlePointerDown(e: PointerEvent) {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    pointerDragSourceId = nodeId;
-    store.startDrag(nodeId);
-    document.body.classList.add('dnd-active');
-    document.body.classList.add('dnd-pointer-active');
-    window.addEventListener('pointerup', handleGlobalPointerUp, true);
-    window.addEventListener('pointermove', handleGlobalPointerMove, true);
-    window.addEventListener('pointercancel', handleGlobalPointerCancel, true);
-  }
-
-  function handleGlobalPointerMove(e: PointerEvent) {
-    if (!pointerDragSourceId) return;
-    const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-    const zone = el?.closest('[data-drop-zone="true"]') as HTMLElement | null;
-    const side = (zone?.dataset.dropSide ?? null) as DropSide | null;
-    const targetId = zone?.dataset.dropNodeId ?? null;
-
-    if (!side || !targetId || targetId === pointerDragSourceId) {
-      store.setDragHover(null, null);
-      return;
-    }
-    store.setDragHover(targetId, side);
-  }
-
-  function handleGlobalPointerUp(e: PointerEvent) {
-    if (!pointerDragSourceId) return;
-    const side = store.dragHoverSide;
-    const targetId = store.dragHoverTargetId;
-
-    if (targetId && side) {
-      store.dropWidget(targetId, side, pointerDragSourceId);
-    } else {
-      store.endDrag();
-    }
-    cleanupPointerDrag();
-  }
-
-  function handleGlobalPointerCancel() {
-    cleanupPointerDrag();
-  }
 
   function handleContainerKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -83,9 +26,6 @@
     }
   }
 
-  onDestroy(() => {
-    cleanupPointerDrag();
-  });
 
 </script>
 
@@ -98,20 +38,6 @@
 >
   {@render children()}
   <WidgetPill {nodeId} {widget} {isRoot} />
-
-  <!-- Drag handle — always in DOM, opacity-controlled -->
-  <div
-    onpointerdown={handleHandlePointerDown}
-    class="absolute top-1 left-1 z-20 flex cursor-grab active:cursor-grabbing items-center justify-center w-5 h-5 rounded
-           opacity-90 hover:opacity-100 transition-opacity select-none
-           text-muted-foreground hover:text-foreground hover:bg-accent/60"
-    title="Déplacer le widget"
-    role="button"
-    tabindex="-1"
-    aria-label="Déplacer le widget"
-  >
-    <GripVertical class="h-3 w-3" aria-hidden="true" />
-  </div>
 
   <!-- Drop zones — visible only during native drag (body.dnd-active) -->
   <!-- Outer ring -->
