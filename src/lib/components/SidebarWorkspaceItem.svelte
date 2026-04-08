@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { ChevronRight, ChevronDown, X, Terminal, Code2, Globe } from '@lucide/svelte';
+  import {
+    ChevronRight,
+    ChevronDown,
+    X,
+    Terminal,
+    TextAlignStart,
+    Globe
+  } from '@lucide/svelte';
   import { store } from '$lib/state.svelte';
   import { flatWidgets } from '$lib/layout';
   import type { Workspace } from '$lib/types';
@@ -36,8 +43,12 @@
 
 <li>
   <!-- Workspace header -->
-  <div class="flex items-center gap-1 px-2 py-1.5 group/ws hover:bg-accent/50
-             {store.activeWorkspaceId === workspace.id ? 'border-l-2 border-primary pl-[6px]' : 'border-l-2 border-transparent pl-[6px]'}">
+  <div
+    class="flex items-center gap-1 px-2 py-1.5 group/ws hover:bg-accent/50
+             {store.activeWorkspaceId === workspace.id
+      ? 'border-l-2 border-primary pl-[6px]'
+      : 'border-l-2 border-transparent pl-[6px]'}"
+  >
     <button
       class="p-0.5 text-muted-foreground hover:text-foreground"
       onclick={() => (collapsed = !collapsed)}
@@ -61,7 +72,9 @@
     {:else}
       <button
         class="flex-1 truncate text-left text-sm font-medium
-               {store.activeWorkspaceId === workspace.id ? 'text-foreground' : 'text-muted-foreground'}
+               {store.activeWorkspaceId === workspace.id
+          ? 'text-foreground'
+          : 'text-muted-foreground'}
                hover:text-foreground"
         onclick={() => store.setActiveWorkspace(workspace.id)}
         ondblclick={startRenameWorkspace}
@@ -84,24 +97,50 @@
   {#if !collapsed}
     <ul class="pb-1">
       {#each widgets as widget (widget.id)}
-        <li class="group/widget flex items-center gap-1.5 px-6 py-1 {store.activePanelId === widget.id ? 'bg-accent/40' : 'hover:bg-accent/30'}">
+        <li
+          class="group/widget flex items-center gap-1.5 px-6 py-1 {store.activePanelId ===
+          widget.id
+            ? 'bg-accent/40'
+            : 'hover:bg-accent/30'}"
+        >
           <button
             class="flex flex-1 min-w-0 items-center gap-1.5 text-left"
-            onclick={() => { store.setActiveWorkspace(workspace.id); store.setActivePanel(widget.id); }}
+            onclick={() => {
+              store.setActiveWorkspace(workspace.id);
+              store.setActivePanel(widget.id);
+            }}
           >
-            <span class="relative flex-shrink-0">
+            <span class="relative shrink-0">
               {#if widget.type === 'terminal'}
-                <Terminal class="h-3 w-3 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
+                <Terminal
+                  class="h-3 w-3 {store.activePanelId === widget.id
+                    ? 'text-foreground'
+                    : 'text-muted-foreground'}"
+                />
               {:else if widget.type === 'code'}
-                <Code2 class="h-3 w-3 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
+                <TextAlignStart
+                  class="h-3 w-3 {store.activePanelId === widget.id
+                    ? 'text-foreground'
+                    : 'text-muted-foreground'}"
+                />
               {:else if widget.type === 'browser'}
-                <Globe class="h-3 w-3 {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}" />
+                <Globe
+                  class="h-3 w-3 {store.activePanelId === widget.id
+                    ? 'text-foreground'
+                    : 'text-muted-foreground'}"
+                />
               {/if}
               {#if store.savingWidgets.has(widget.id)}
-                <span class="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-primary"></span>
+                <span
+                  class="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-primary"
+                ></span>
               {/if}
             </span>
-            <span class="flex-1 truncate text-xs {store.activePanelId === widget.id ? 'text-foreground' : 'text-muted-foreground'}">
+            <span
+              class="flex-1 truncate text-xs {store.activePanelId === widget.id
+                ? 'text-foreground'
+                : 'text-muted-foreground'}"
+            >
               {widget.label ?? widget.type}
             </span>
           </button>

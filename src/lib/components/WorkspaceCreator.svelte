@@ -9,10 +9,20 @@
   let name = $state('');
   let path = $state('');
   let open = $state(false);
+  let suggestedName = $derived(() => {
+    if (!path) return '';
+    const parts = path.split(/[/\\]/);
+    const strippedPath = parts[parts.length - 1] || '';
+    const noDashes = strippedPath.replace(/[-_]+/g, ' ');
+    return noDashes.at(0)?.toUpperCase() + noDashes.slice(1) || '';
+  });
 
   async function browsePath() {
     const selected = await openDialog({ directory: true, multiple: false });
-    if (selected) path = selected;
+    if (selected) {
+      path = selected;
+      name = suggestedName();
+    }
   }
 
   async function handleCreate() {
@@ -43,10 +53,6 @@
     <div class="flex flex-col gap-3">
       <p class="text-sm font-semibold">Nouveau workspace</p>
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs text-muted-foreground" for="ws-name">Nom</label>
-        <Input id="ws-name" bind:value={name} placeholder="Mon Projet" />
-      </div>
-      <div class="flex flex-col gap-1.5">
         <span class="text-xs text-muted-foreground">Dossier</span>
         <button
           class="flex items-center gap-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm
@@ -61,6 +67,10 @@
             <span class="text-muted-foreground">Parcourir…</span>
           {/if}
         </button>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs text-muted-foreground" for="ws-name">Nom</label>
+        <Input id="ws-name" bind:value={name} placeholder="Mon Projet" />
       </div>
       <Button
         disabled={!name.trim() || !path}

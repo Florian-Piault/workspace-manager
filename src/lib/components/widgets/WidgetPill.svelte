@@ -1,5 +1,15 @@
 <script lang="ts">
-  import { Columns2, Rows2, X, Maximize2, Minimize2, Terminal, Code2, Globe, GripVertical } from '@lucide/svelte';
+  import {
+    Columns2,
+    Rows2,
+    X,
+    Maximize2,
+    Minimize2,
+    Terminal,
+    TextAlignStart,
+    Globe,
+    GripVertical
+  } from '@lucide/svelte';
   import { store, type DropSide } from '$lib/state.svelte';
   import { onDestroy } from 'svelte';
   import type { Widget } from '$lib/types';
@@ -7,7 +17,7 @@
   let {
     nodeId,
     widget,
-    isRoot = false,
+    isRoot = false
   }: {
     nodeId: string;
     widget: Widget;
@@ -40,7 +50,11 @@
   function cleanupPointerDrag() {
     window.removeEventListener('pointerup', handleGlobalPointerUp, true);
     window.removeEventListener('pointermove', handleGlobalPointerMove, true);
-    window.removeEventListener('pointercancel', handleGlobalPointerCancel, true);
+    window.removeEventListener(
+      'pointercancel',
+      handleGlobalPointerCancel,
+      true
+    );
     document.body.classList.remove('dnd-active');
     document.body.classList.remove('dnd-pointer-active');
     pointerDragSourceId = null;
@@ -62,7 +76,10 @@
 
   function handleGlobalPointerMove(e: PointerEvent) {
     if (!pointerDragSourceId) return;
-    const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+    const el = document.elementFromPoint(
+      e.clientX,
+      e.clientY
+    ) as HTMLElement | null;
     const zone = el?.closest('[data-drop-zone="true"]') as HTMLElement | null;
     const side = (zone?.dataset.dropSide ?? null) as DropSide | null;
     const targetId = zone?.dataset.dropNodeId ?? null;
@@ -115,11 +132,11 @@
   <div class="mx-0.5 h-3 w-px bg-white/20"></div>
 
   {#if widget.type === 'terminal'}
-    <Terminal class="h-3 w-3 text-white/60 flex-shrink-0" />
+    <Terminal class="h-3 w-3 text-white/60 shrink-0" />
   {:else if widget.type === 'code'}
-    <Code2 class="h-3 w-3 text-white/60 flex-shrink-0" />
+    <TextAlignStart class="h-3 w-3 text-white/60 shrink-0" />
   {:else if widget.type === 'browser'}
-    <Globe class="h-3 w-3 text-white/60 flex-shrink-0" />
+    <Globe class="h-3 w-3 text-white/60 shrink-0" />
   {/if}
 
   {#if widget.type !== 'empty'}
@@ -145,7 +162,10 @@
 
   <button
     class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
-    onclick={(e) => { e.stopPropagation(); store.toggleMaximize(nodeId); }}
+    onclick={e => {
+      e.stopPropagation();
+      store.toggleMaximize(nodeId);
+    }}
     title={store.maximizedPanelId === nodeId ? 'Restaurer' : 'Maximiser'}
   >
     {#if store.maximizedPanelId === nodeId}
@@ -157,14 +177,20 @@
 
   <button
     class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
-    onclick={(e) => { e.stopPropagation(); store.splitPanel(nodeId, 'horizontal'); }}
+    onclick={e => {
+      e.stopPropagation();
+      store.splitPanel(nodeId, 'horizontal');
+    }}
     title="Split vertical"
   >
     <Columns2 class="h-3 w-3" />
   </button>
   <button
     class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
-    onclick={(e) => { e.stopPropagation(); store.splitPanel(nodeId, 'vertical'); }}
+    onclick={e => {
+      e.stopPropagation();
+      store.splitPanel(nodeId, 'vertical');
+    }}
     title="Split horizontal"
   >
     <Rows2 class="h-3 w-3" />
@@ -172,8 +198,10 @@
   <button
     class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white
            disabled:pointer-events-none disabled:opacity-30"
-    disabled={isRoot}
-    onclick={(e) => { e.stopPropagation(); store.closePanel(nodeId); }}
+    onclick={e => {
+      e.stopPropagation();
+      store.closePanel(nodeId);
+    }}
     title="Fermer"
   >
     <X class="h-3 w-3" />

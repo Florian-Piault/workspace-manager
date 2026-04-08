@@ -40,7 +40,7 @@
     {:else if node.type === 'terminal'}
       <TerminalWidget config={node.config} nodeId={node.id} />
     {:else if node.type === 'browser'}
-      <BrowserWidget config={node.config} />
+      <BrowserWidget config={node.config} nodeId={node.id} />
     {/if}
   </PanelOverlay>
 {/if}

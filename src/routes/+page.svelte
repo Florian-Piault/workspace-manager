@@ -68,7 +68,7 @@
           {:else if maximizedWidget.type === 'terminal'}
             <TerminalWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
           {:else if maximizedWidget.type === 'browser'}
-            <BrowserWidget config={maximizedWidget.config} />
+            <BrowserWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
           {/if}
         </PanelOverlay>
       </div>

@@ -20,6 +20,7 @@
   const hoverSide = $derived(store.dragHoverTargetId === nodeId ? store.dragHoverSide : null);
 
   function handleContainerKeydown(e: KeyboardEvent) {
+    if (e.target !== e.currentTarget) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       store.setActivePanel(nodeId);

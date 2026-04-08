@@ -72,6 +72,9 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
     devDependencies:
+      '@internationalized/date':
+        specifier: ^3.12.0
+        version: 3.12.0
       '@sveltejs/adapter-static':
         specifier: ^3.0.10
         version: 3.0.10(@sveltejs/kit@2.56.1(@sveltejs/vite-plugin-svelte@7.0.0(svelte@5.55.1)(vite@8.0.7(jiti@2.6.1)))(svelte@5.55.1)(typescript@6.0.2)(vite@8.0.7(jiti@2.6.1)))

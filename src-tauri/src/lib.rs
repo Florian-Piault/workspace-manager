@@ -1,5 +1,6 @@
 mod pty;
 mod fs;
+mod browser;
 
 use pty::PtyManager;
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -30,6 +31,14 @@ pub fn run() {
             pty::pty_get_scrollback,
             fs::read_file,
             fs::write_file,
+            browser::browser_open,
+            browser::browser_navigate,
+            browser::browser_resize,
+            browser::browser_close,
+            browser::browser_back,
+            browser::browser_forward,
+            browser::browser_refresh,
+            browser::browser_report_title,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
