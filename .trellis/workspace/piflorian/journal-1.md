@@ -49,3 +49,53 @@ Remplissage des 6 fichiers de guidelines frontend à partir de l'analyse du code
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: fix: terminal espace + browser barre + traffic lights + drag fenêtre
+
+**Date**: 2026-04-08
+**Task**: fix: terminal espace + browser barre + traffic lights + drag fenêtre
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Domaine | Description |
+|---------|-------------|
+| Terminal | Fix espace intercepté par PanelOverlay (`e.target !== e.currentTarget`) |
+| Browser | `decorations: false` — supprime la barre native macOS, corrige le positionnement du child webview |
+| Browser | Loading indicator (Loader spinner dans l'URL bar) + rotation 1/4 tour du bouton refresh |
+| Sidebar | Boutons traffic lights macOS (rouge/jaune/vert) avec icônes X/Minus/Maximize2 au hover |
+| Sidebar | Boutons Windows 11 (rectangulaires, rouge sur close) avec détection de plateforme |
+| Sidebar | Collapsed = layout vertical des boutons |
+| Sidebar | macOS fullscreen via `setFullscreen()` au lieu de `toggleMaximize()` |
+| Sidebar | Drag fenêtre via `startDragging()` explicite (spacer en expanded, header en collapsed) |
+| Capabilities | `allow-close`, `allow-minimize`, `allow-toggle-maximize`, `allow-set-fullscreen`, `allow-start-dragging` |
+
+**Fichiers modifiés** :
+- `src/lib/components/PanelOverlay.svelte` — fix espace
+- `src/lib/components/Sidebar.svelte` — traffic lights + drag
+- `src/lib/components/widgets/BrowserWidget.svelte` — loading + refresh rotation
+- `src-tauri/tauri.conf.json` — decorations: false
+- `src-tauri/capabilities/default.json` — permissions fenêtre
+
+**En attente** : commit par le développeur après validation
+
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

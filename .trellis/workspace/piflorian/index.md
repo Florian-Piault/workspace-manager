@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 1
-- **Last Active**: 2026-04-07
+- **Total Sessions**: 2
+- **Last Active**: 2026-04-08
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~51 | Active |
+| `journal-1.md` | ~101 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits |
 |---|------|-------|---------|
+| 2 | 2026-04-08 | fix: terminal espace + browser barre + traffic lights + drag fenêtre | - |
 | 1 | 2026-04-07 | Bootstrap guidelines frontend | `98a6b9f` |
 <!-- @@@/auto:session-history -->
 
