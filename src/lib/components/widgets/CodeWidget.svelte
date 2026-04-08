@@ -96,6 +96,7 @@
         extensions: [
           basicSetup,
           oneDark,
+          EditorView.theme({ '&': { height: '100%' }, '.cm-scroller': { overflow: 'auto' } }),
           langCompartment.of(getLangExtension(activeLang)),
           EditorView.updateListener.of((update) => {
             if (update.docChanged && filePath) {
@@ -165,7 +166,7 @@
 
   <!-- Éditeur -->
   <div class="relative min-h-0 flex-1">
-    <div bind:this={editorContainer} class="h-full w-full overflow-auto"></div>
+    <div bind:this={editorContainer} class="h-full w-full overflow-hidden"></div>
 
     {#if fileError}
       <div class="absolute inset-0 flex items-center justify-center bg-background/80">
