@@ -15,7 +15,7 @@
     lineNumbers as cmLineNumbers
   } from '@codemirror/view';
   import { EditorState, Compartment } from '@codemirror/state';
-  import { history, historyKeymap, defaultKeymap } from '@codemirror/commands';
+  import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirror/commands';
   import {
     foldGutter,
     indentOnInput,
@@ -221,6 +221,7 @@
           crosshairCursor(),
           highlightSelectionMatches(),
           keymap.of([
+            indentWithTab,
             ...closeBracketsKeymap,
             ...defaultKeymap,
             ...searchKeymap,

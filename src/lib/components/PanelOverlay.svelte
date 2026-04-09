@@ -19,11 +19,25 @@
   const isActive = $derived(store.activePanelId === nodeId);
   const hoverSide = $derived(store.dragHoverTargetId === nodeId ? store.dragHoverSide : null);
 
+  const FOCUSABLE =
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+
   function handleContainerKeydown(e: KeyboardEvent) {
-    if (e.target !== e.currentTarget) return;
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
       store.setActivePanel(nodeId);
+    }
+
+    if (e.key === 'Tab' && !e.defaultPrevented) {
+      const container = e.currentTarget as HTMLElement;
+      const els = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (els.length === 0) return;
+      const idx = els.indexOf(document.activeElement as HTMLElement);
+      e.preventDefault();
+      const next = e.shiftKey
+        ? idx <= 0 ? els.length - 1 : idx - 1
+        : idx >= els.length - 1 ? 0 : idx + 1;
+      els[next].focus();
     }
   }
 
