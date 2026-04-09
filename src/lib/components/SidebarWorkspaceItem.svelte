@@ -7,9 +7,15 @@
     TextAlignStart,
     Globe
   } from '@lucide/svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { store } from '$lib/state.svelte';
   import { flatWidgets } from '$lib/layout';
   import type { Workspace } from '$lib/types';
+
+  function goHome() {
+    if ($page.url.pathname !== '/') goto('/');
+  }
 
   let { workspace }: { workspace: Workspace } = $props();
 
@@ -76,7 +82,7 @@
           ? 'text-foreground'
           : 'text-muted-foreground'}
                hover:text-foreground"
-        onclick={() => store.setActiveWorkspace(workspace.id)}
+        onclick={() => { store.setActiveWorkspace(workspace.id); goHome(); }}
         ondblclick={startRenameWorkspace}
         title="Cliquer pour activer, double-cliquer pour renommer"
       >
@@ -108,6 +114,7 @@
             onclick={() => {
               store.setActiveWorkspace(workspace.id);
               store.setActivePanel(widget.id);
+              goHome();
             }}
           >
             <span class="relative shrink-0">

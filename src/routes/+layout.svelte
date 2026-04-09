@@ -2,9 +2,22 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { theme } from '$lib/theme.svelte';
+  import { settings } from '$lib/settings.svelte';
+  import Sidebar from '$lib/components/Sidebar.svelte';
+
   let { children } = $props();
 
-  onMount(() => theme.init());
+  onMount(async () => {
+    theme.init();
+    await settings.init().catch((err) => {
+      console.error('[Settings] init failed:', err);
+    });
+  });
 </script>
 
-{@render children()}
+<div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+  <Sidebar />
+  <main class="relative flex-1 overflow-hidden">
+    {@render children()}
+  </main>
+</div>

@@ -1,20 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { store } from '$lib/state.svelte';
-  import { theme } from '$lib/theme.svelte';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import {
     FolderOpen,
-    Sun,
-    Moon,
     PanelLeftClose,
     PanelLeftOpen,
     X,
     Minus,
     Maximize2,
     Square,
-    Folder
+    Folder,
+    Settings,
+    ArrowLeft,
   } from '@lucide/svelte';
   import WorkspaceCreator from './WorkspaceCreator.svelte';
   import SidebarWorkspaceItem from './SidebarWorkspaceItem.svelte';
@@ -275,7 +276,7 @@
                    {store.activeWorkspaceId === workspace.id
                     ? 'bg-accent text-foreground'
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'}"
-                  onclick={() => store.setActiveWorkspace(workspace.id)}
+                  onclick={() => { store.setActiveWorkspace(workspace.id); if ($page.url.pathname !== '/') goto('/'); }}
                   title={workspace.name}
                 >
                   {#if store.activeWorkspaceId === workspace.id}
@@ -311,26 +312,34 @@
     </ul>
   {/if}
 
-  <!-- Footer : toggle dark mode -->
+  <!-- Footer : paramètres / retour -->
   <div
     class="border-t border-border {collapsed
       ? 'flex justify-center px-2 py-2'
       : 'px-3 py-2'}"
   >
-    <button
-      class="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground
-             hover:bg-accent hover:text-accent-foreground transition-colors
-             {collapsed ? 'w-auto' : 'w-full'}"
-      onclick={theme.toggle}
-      title={theme.dark ? 'Passer en mode clair' : 'Passer en mode sombre'}
-    >
-      {#if theme.dark}
-        <Sun class="h-3.5 w-3.5 shrink-0" />
-        {#if !collapsed}<span>Mode clair</span>{/if}
-      {:else}
-        <Moon class="h-3.5 w-3.5 shrink-0" />
-        {#if !collapsed}<span>Mode sombre</span>{/if}
-      {/if}
-    </button>
+    {#if $page.url.pathname === '/settings'}
+      <button
+        class="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground
+               hover:bg-accent hover:text-accent-foreground transition-colors
+               {collapsed ? 'w-auto' : 'w-full'}"
+        onclick={() => goto('/')}
+        title="Retour"
+      >
+        <ArrowLeft class="h-3.5 w-3.5 shrink-0" />
+        {#if !collapsed}<span>Retour</span>{/if}
+      </button>
+    {:else}
+      <button
+        class="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground
+               hover:bg-accent hover:text-accent-foreground transition-colors
+               {collapsed ? 'w-auto' : 'w-full'}"
+        onclick={() => goto('/settings')}
+        title="Paramètres"
+      >
+        <Settings class="h-3.5 w-3.5 shrink-0" />
+        {#if !collapsed}<span>Paramètres</span>{/if}
+      </button>
+    {/if}
   </div>
 </aside>
