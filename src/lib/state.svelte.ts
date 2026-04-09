@@ -24,6 +24,7 @@ export class WorkspaceStore {
   draggingWidgetId = $state<string | null>(null);
   dragHoverTargetId = $state<string | null>(null);
   dragHoverSide = $state<DropSide | null>(null);
+  autoLabels = $state<Map<string, string>>(new Map());
 
   activeWorkspace = $derived(
     this.workspaces.find((w) => w.id === this.activeWorkspaceId) ?? null
@@ -217,6 +218,13 @@ export class WorkspaceStore {
     const newRoot = updatePanelSizesHelper(layout.root, nodeId, sizes);
     this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
     this._debouncedSave();
+  }
+
+  setAutoLabel(nodeId: string, label: string): void {
+    const next = new Map(this.autoLabels);
+    if (label) next.set(nodeId, label);
+    else next.delete(nodeId);
+    this.autoLabels = next;
   }
 
   updateWidgetLabel(nodeId: string, label: string): void {

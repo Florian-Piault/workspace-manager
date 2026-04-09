@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
   // CodeMirror core
@@ -73,6 +73,11 @@
   const langOverride = $derived((config.language as string | null) ?? null);
   const activeLang = $derived(langOverride ?? detectLanguage(filePath));
   const fileName = $derived(filePath ? filePath.split('/').pop() : null);
+
+  $effect(() => {
+    const label = fileName ?? '';
+    untrack(() => store.setAutoLabel(nodeId, label));
+  });
 
   // Résolution des settings effectifs : override widget > global
   function eff<T>(key: keyof typeof settings.editor, fallback: T): T {

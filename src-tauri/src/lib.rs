@@ -37,6 +37,7 @@ pub fn run() {
             pty::pty_resize,
             pty::pty_kill,
             pty::pty_get_scrollback,
+            pty::pty_fg_process,
             fs::read_file,
             fs::write_file,
             browser::browser_open,

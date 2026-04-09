@@ -148,7 +148,7 @@
                 ? 'text-foreground'
                 : 'text-muted-foreground'}"
             >
-              {widget.label ?? widget.type}
+              {widget.label ?? store.autoLabels.get(widget.id) ?? widget.type}
             </span>
           </button>
           <button

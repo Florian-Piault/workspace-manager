@@ -42,7 +42,7 @@
     if (e.key === 'Escape') editing = false;
   }
 
-  const displayLabel = $derived(widget.label ?? widget.type);
+  const displayLabel = $derived(widget.label ?? store.autoLabels.get(nodeId) ?? widget.type);
 
   // --- Drag logic ---
   let pointerDragSourceId: string | null = null;

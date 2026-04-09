@@ -20,6 +20,7 @@
   let unlistenData: (() => void) | null = null;
   let unlistenExit: (() => void) | null = null;
   let resizeObserver: ResizeObserver | null = null;
+  let fgPollTimer: ReturnType<typeof setInterval> | null = null;
   let mounted = true;
 
   async function startPty(targetId: string) {
@@ -45,7 +46,17 @@
 
     unlistenExit = await listen(`pty_exit:${ptyId}`, () => {
       exited = true;
+      if (fgPollTimer !== null) { clearInterval(fgPollTimer); fgPollTimer = null; }
     });
+
+    const currentPtyId = ptyId;
+    fgPollTimer = setInterval(async () => {
+      if (!mounted || !currentPtyId) return;
+      try {
+        const name = await invoke<string>('pty_fg_process', { id: currentPtyId });
+        store.setAutoLabel(nodeId, name);
+      } catch { /* PTY disparu ou pas de PID */ }
+    }, 1500);
   }
 
   onMount(async () => {
@@ -96,6 +107,7 @@
     resizeObserver?.disconnect();
     unlistenData?.();
     unlistenExit?.();
+    if (fgPollTimer !== null) { clearInterval(fgPollTimer); fgPollTimer = null; }
     if (ptyId) {
       // Si le nœud est encore dans le layout, c'est un remount (split) — ne pas tuer le PTY
       const layout = store.activeLayout;

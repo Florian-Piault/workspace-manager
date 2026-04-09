@@ -38,10 +38,15 @@
       urlInput = event.payload;
       loading = false;
       store.updateWidgetConfig(nodeId, { url: event.payload });
+      try { store.setAutoLabel(nodeId, new URL(event.payload).hostname); } catch { /* ignore */ }
     });
 
     unlistenTitle = await listen<string>(`browser_title:${nodeId}`, event => {
-      if (event.payload) store.updateWidgetLabel(nodeId, event.payload);
+      if (event.payload) {
+        store.setAutoLabel(nodeId, event.payload);
+      } else {
+        try { store.setAutoLabel(nodeId, new URL(urlInput).hostname); } catch { /* ignore */ }
+      }
     });
 
     // Attendre un frame pour que paneforge finalise le layout

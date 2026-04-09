@@ -10,6 +10,7 @@ pub struct PtyHandle {
     master: Box<dyn portable_pty::MasterPty + Send>,
     _child: Box<dyn portable_pty::Child + Send + Sync>,
     scrollback: Arc<Mutex<Vec<u8>>>,
+    shell_pid: Option<u32>,
 }
 
 pub struct PtyManager(pub Mutex<HashMap<String, PtyHandle>>);
@@ -63,6 +64,7 @@ pub fn pty_create(
     cmd.cwd(cwd.trim_matches('\0'));
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
+    let shell_pid = child.process_id();
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
     let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
 
@@ -111,6 +113,7 @@ pub fn pty_create(
             master: pair.master,
             _child: child,
             scrollback,
+            shell_pid,
         },
     );
 
@@ -158,6 +161,52 @@ pub fn pty_kill(id: String, manager: State<PtyManager>) -> Result<String, String
         let sb = handle.scrollback.lock().unwrap();
         Ok(STANDARD.encode(&*sb))
     } else {
+        Ok(String::new())
+    }
+}
+
+#[tauri::command]
+pub fn pty_fg_process(id: String, manager: State<PtyManager>) -> Result<String, String> {
+    let map = manager.0.lock().unwrap();
+    let shell_pid = map
+        .get(&id)
+        .and_then(|h| h.shell_pid)
+        .ok_or_else(|| "PTY not found or no PID".to_string())?;
+
+    #[cfg(unix)]
+    {
+        // Cherche les processus enfants du shell
+        let children = std::process::Command::new("pgrep")
+            .args(["-P", &shell_pid.to_string()])
+            .output();
+
+        if let Ok(out) = children {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if let Some(child_pid) = stdout.lines().last().map(|l| l.trim()) {
+                if !child_pid.is_empty() {
+                    let name_out = std::process::Command::new("ps")
+                        .args(["-p", child_pid, "-o", "comm="])
+                        .output();
+                    if let Ok(o) = name_out {
+                        let name = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                        if !name.is_empty() {
+                            return Ok(name);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback : nom du shell lui-même
+        let out = std::process::Command::new("ps")
+            .args(["-p", &shell_pid.to_string(), "-o", "comm="])
+            .output()
+            .map_err(|e| e.to_string())?;
+        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    }
+
+    #[cfg(windows)]
+    {
         Ok(String::new())
     }
 }
