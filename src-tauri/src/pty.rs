@@ -54,9 +54,13 @@ pub fn pty_create(
         })
         .map_err(|e| e.to_string())?;
 
+    #[cfg(target_os = "windows")]
+    let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
+    #[cfg(not(target_os = "windows"))]
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+
     let mut cmd = CommandBuilder::new(&shell);
-    cmd.cwd(&cwd);
+    cmd.cwd(cwd.trim_matches('\0'));
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
