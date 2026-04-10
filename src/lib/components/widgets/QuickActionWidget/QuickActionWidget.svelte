@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Plus } from '@lucide/svelte';
+  import { Plus, Pin, PinOff, ChevronDown, ChevronUp, ScanSearch } from '@lucide/svelte';
   import { store } from '$lib/state.svelte';
-  import { qaStore } from '$lib/quick_actions.svelte';
+  import { qaStore, type DetectedAction } from '$lib/quick_actions.svelte';
   import QuickActionItem from './QuickActionItem.svelte';
   import QuickActionForm from './QuickActionForm.svelte';
 
@@ -10,6 +10,7 @@
 
   let showForm = $state(false);
   let editingId = $state<string | null>(null);
+  let showDetected = $state(true);
 
   const workspaceId = $derived(store.activeWorkspaceId);
   const workspacePath = $derived(store.activeWorkspace?.path ?? '/');
@@ -18,12 +19,29 @@
     qaStore.actions.filter(a => a.workspaceId === workspaceId)
   );
 
+  const detectedActions = $derived(qaStore.detectedActions);
+
   const editingAction = $derived(
     editingId ? actions.find(a => a.id === editingId) ?? null : null
   );
 
+  let lastScannedPath = $state('');
+
   onMount(async () => {
     if (workspaceId) await qaStore.loadForWorkspace(workspaceId);
+    if (workspacePath && workspacePath !== '/') {
+      lastScannedPath = workspacePath;
+      await qaStore.scanWorkspace(workspacePath);
+    }
+  });
+
+  // Re-scan when workspace path changes
+  $effect(() => {
+    const path = workspacePath;
+    if (path && path !== '/' && path !== lastScannedPath) {
+      lastScannedPath = path;
+      qaStore.scanWorkspace(path);
+    }
   });
 
   onDestroy(() => {
@@ -54,6 +72,32 @@
     await qaStore.update(editingId, label, command, args, cwd);
     editingId = null;
   }
+
+  async function pinAction(detected: DetectedAction) {
+    if (!workspaceId) return;
+    await qaStore.create(workspaceId, detected.label, detected.command, [], null);
+    if (workspacePath && workspacePath !== '/') await qaStore.scanWorkspace(workspacePath);
+  }
+
+  async function unpinAction(detected: DetectedAction) {
+    const matching = actions.find(a => a.command === detected.command && a.args.length === 0);
+    if (!matching) return;
+    await qaStore.delete(matching.id);
+    if (workspacePath && workspacePath !== '/') await qaStore.scanWorkspace(workspacePath);
+  }
+
+  function iconLabel(icon: string): string {
+    const map: Record<string, string> = {
+      npm: 'npm',
+      pnpm: 'pnpm',
+      bun: 'bun',
+      make: 'make',
+      docker: 'docker',
+      cargo: 'cargo',
+      shell: 'sh',
+    };
+    return map[icon] ?? icon;
+  }
 </script>
 
 <div class="flex h-full w-full flex-col overflow-hidden">
@@ -71,7 +115,7 @@
 
   <!-- Liste des actions -->
   <div class="min-h-0 flex-1 overflow-y-auto p-2">
-    {#if actions.length === 0 && !showForm}
+    {#if actions.length === 0 && detectedActions.length === 0 && !showForm}
       <div class="flex h-full items-center justify-center">
         <div class="flex flex-col items-center gap-2 text-center">
           <span class="text-sm text-muted-foreground">Aucune action configurée.</span>
@@ -97,6 +141,62 @@
           />
         {/each}
       </div>
+
+      <!-- Detected Actions -->
+      {#if detectedActions.length > 0}
+        <div class="mt-3">
+          <button
+            onclick={() => (showDetected = !showDetected)}
+            class="flex w-full items-center gap-1.5 px-1 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ScanSearch class="h-3 w-3" />
+            <span>Commandes détectées ({detectedActions.length})</span>
+            {#if showDetected}
+              <ChevronUp class="ml-auto h-3 w-3" />
+            {:else}
+              <ChevronDown class="ml-auto h-3 w-3" />
+            {/if}
+          </button>
+
+          {#if showDetected}
+            <div class="flex flex-col gap-1 mt-1">
+              {#each detectedActions as detected (detected.id)}
+                <div class="flex items-center gap-2 rounded border px-2 py-1.5 transition-colors {detected.isPinned ? 'border-border/30 bg-muted/30' : 'border-border/50 bg-card/50'}">
+                  <!-- Source badge -->
+                  <span class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">
+                    {iconLabel(detected.icon)}
+                  </span>
+
+                  <!-- Label + command -->
+                  <div class="min-w-0 flex-1">
+                    <span class="block truncate text-xs font-medium {detected.isPinned ? 'text-muted-foreground' : ''}">{detected.label}</span>
+                    <span class="block truncate text-xs text-muted-foreground/60">{detected.command}</span>
+                  </div>
+
+                  <!-- Pin / Unpin button -->
+                  {#if detected.isPinned}
+                    <button
+                      onclick={() => unpinAction(detected)}
+                      title="Dépingler cette action"
+                      class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-primary/60 hover:bg-accent hover:text-destructive transition-colors"
+                    >
+                      <PinOff class="h-3 w-3" />
+                    </button>
+                  {:else}
+                    <button
+                      onclick={() => pinAction(detected)}
+                      title="Épingler cette action"
+                      class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <Pin class="h-3 w-3" />
+                    </button>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
     {/if}
   </div>
 

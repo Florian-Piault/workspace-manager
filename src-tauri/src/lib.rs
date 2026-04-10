@@ -2,6 +2,7 @@ mod pty;
 mod fs;
 mod browser;
 mod quick_actions;
+mod scan_engine;
 
 use pty::PtyManager;
 use quick_actions::ProcessManager;
@@ -59,6 +60,7 @@ pub fn run() {
             browser::browser_report_title,
             quick_actions::qa_execute,
             quick_actions::qa_kill,
+            scan_engine::scan_workspace_actions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -4,6 +4,15 @@ import { listen } from '@tauri-apps/api/event';
 
 export type ActionStatus = 'idle' | 'running' | 'success' | 'error';
 
+export interface DetectedAction {
+  id: string;
+  source: string;
+  label: string;
+  command: string;
+  icon: string;
+  isPinned: boolean;
+}
+
 export interface QuickAction {
   id: string;
   workspaceId: string;
@@ -39,8 +48,17 @@ function rowToAction(r: DbRow): QuickAction {
   };
 }
 
+interface RawDetectedAction {
+  id: string;
+  source: string;
+  label: string;
+  command: string;
+  icon: string;
+}
+
 class QuickActionsStore {
   actions = $state<QuickAction[]>([]);
+  detectedActions = $state<DetectedAction[]>([]);
   statuses = $state<Map<string, ActionStatus>>(new Map());
   logs = $state<Map<string, string[]>>(new Map());
 
@@ -143,6 +161,23 @@ class QuickActionsStore {
     await invoke('qa_kill', { id }).catch(() => {});
     this.setStatus(id, 'idle');
     this.cleanListeners(id);
+  }
+
+  async scanWorkspace(workspacePath: string): Promise<void> {
+    try {
+      const raw = await invoke<RawDetectedAction[]>('scan_workspace_actions', { workspacePath });
+      const pinnedCommands = new Set(this.actions.map(a => {
+        // Reconstruct full command string as stored actions split command/args
+        const full = a.args.length ? `${a.command} ${a.args.join(' ')}` : a.command;
+        return full;
+      }));
+      this.detectedActions = raw.map(d => ({
+        ...d,
+        isPinned: pinnedCommands.has(d.command),
+      }));
+    } catch {
+      this.detectedActions = [];
+    }
   }
 
   clearLogs(id: string): void {
