@@ -64,6 +64,7 @@
   const autocompletionComp = new Compartment();
   const lintComp = new Compartment();
   const editorThemeComp = new Compartment();
+  const appKeymapComp = new Compartment();
 
   let loading = $state(false);
   let fileError = $state<string | null>(null);
@@ -167,6 +168,13 @@
     dispatch(editorThemeComp, effEditorTheme === 'oneDark' ? oneDark : []);
   });
 
+  $effect(() => {
+    const saveKey = `Mod-${settings.keybinds.saveFile}`;
+    dispatch(appKeymapComp, keymap.of([
+      { key: saveKey, run: () => { saveImmediately(); return true; } }
+    ]));
+  });
+
   async function openFile() {
     const selected = await openDialog({ multiple: false, directory: false });
     if (!selected) return;
@@ -236,8 +244,10 @@
           rectangularSelection(),
           crosshairCursor(),
           highlightSelectionMatches(),
+          appKeymapComp.of(keymap.of([
+            { key: `Mod-${settings.keybinds.saveFile}`, run: () => { saveImmediately(); return true; } }
+          ])),
           keymap.of([
-            { key: 'Mod-s', run: () => { saveImmediately(); return true; } }, // Ctrl+S / Cmd+S
             indentWithTab,
             ...closeBracketsKeymap,
             ...defaultKeymap,

@@ -45,15 +45,16 @@
     function handleKeydown(e: KeyboardEvent) {
       if (!store.activePanelId) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key === '\\') {
+      const kb = settings.keybinds;
+      if (mod && e.key === kb.splitHorizontal) {
         e.preventDefault();
         e.stopPropagation();
         store.splitPanel(store.activePanelId, 'horizontal');
-      } else if (mod && e.key === '-') {
+      } else if (mod && e.key === kb.splitVertical) {
         e.preventDefault();
         e.stopPropagation();
         store.splitPanel(store.activePanelId, 'vertical');
-      } else if (mod && e.key === 'w') {
+      } else if (mod && e.key === kb.closePanel) {
         e.preventDefault();
         e.stopPropagation();
         store.closePanel(store.activePanelId);

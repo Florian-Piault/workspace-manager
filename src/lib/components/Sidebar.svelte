@@ -88,9 +88,9 @@
       /* ignore */
     }
 
-    // ⌘+B / Ctrl+B shortcut
+    // Toggle sidebar shortcut (configurable)
     function handleKeydown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+      if ((e.metaKey || e.ctrlKey) && e.key === settings.keybinds.toggleSidebar) {
         e.preventDefault();
         toggle();
       }

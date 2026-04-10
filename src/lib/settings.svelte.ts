@@ -1,5 +1,16 @@
 import Database from '@tauri-apps/plugin-sql';
 
+export interface KeybindSettings {
+  splitHorizontal: string;
+  splitVertical: string;
+  closePanel: string;
+  toggleSidebar: string;
+  saveFile: string;
+}
+
+// Combinaisons bloquées (système/navigateur/Tauri)
+export const BLOCKED_KEYS = new Set(['r', 'F5', 'F12', 'F4', 'a', 'c', 'v', 'x', 'z', 'y']);
+
 export interface EditorDefaults {
   lineNumbers: boolean;
   wordWrap: boolean;
@@ -69,12 +80,21 @@ const GENERAL_DEFAULTS: GeneralSettings = {
   sidebarPosition: 'left',
 };
 
+export const KEYBIND_DEFAULTS: KeybindSettings = {
+  splitHorizontal: '\\',
+  splitVertical: '-',
+  closePanel: 'w',
+  toggleSidebar: 'b',
+  saveFile: 's',
+};
+
 function createSettingsStore() {
   let db: Database | null = null;
   let editor = $state<EditorDefaults>({ ...EDITOR_DEFAULTS });
   let terminal = $state<TerminalSettings>({ ...TERMINAL_DEFAULTS });
   let browser = $state<BrowserSettings>({ ...BROWSER_DEFAULTS });
   let general = $state<GeneralSettings>({ ...GENERAL_DEFAULTS });
+  let keybinds = $state<KeybindSettings>({ ...KEYBIND_DEFAULTS });
   let ready = $state(false);
 
   async function init() {
@@ -89,6 +109,7 @@ function createSettingsStore() {
         else if (key === 'terminal') terminal = { ...TERMINAL_DEFAULTS, ...parsed };
         else if (key === 'browser') browser = { ...BROWSER_DEFAULTS, ...parsed };
         else if (key === 'general') general = { ...GENERAL_DEFAULTS, ...parsed };
+        else if (key === 'keybinds') keybinds = { ...KEYBIND_DEFAULTS, ...parsed };
       } catch {
         // keep defaults on malformed JSON
       }
@@ -123,17 +144,30 @@ function createSettingsStore() {
     await persist('general', general);
   }
 
+  async function setKeybinds(patch: Partial<KeybindSettings>) {
+    keybinds = { ...keybinds, ...patch };
+    await persist('keybinds', keybinds);
+  }
+
+  async function resetKeybinds() {
+    keybinds = { ...KEYBIND_DEFAULTS };
+    await persist('keybinds', keybinds);
+  }
+
   return {
     get editor() { return editor; },
     get terminal() { return terminal; },
     get browser() { return browser; },
     get general() { return general; },
+    get keybinds() { return keybinds; },
     get ready() { return ready; },
     init,
     setEditor,
     setTerminal,
     setBrowser,
     setGeneral,
+    setKeybinds,
+    resetKeybinds,
   };
 }
 

@@ -1,7 +1,70 @@
 <script lang="ts">
   import { theme } from '$lib/theme.svelte';
-  import { settings, TERMINAL_COLOR_PRESETS } from '$lib/settings.svelte';
-  import { Sun, Moon } from '@lucide/svelte';
+  import { settings, TERMINAL_COLOR_PRESETS, KEYBIND_DEFAULTS, BLOCKED_KEYS, type KeybindSettings } from '$lib/settings.svelte';
+  import { Sun, Moon, RotateCcw, AlertTriangle, Keyboard } from '@lucide/svelte';
+
+  type KeybindKey = keyof KeybindSettings;
+
+  const KEYBIND_LABELS: Record<KeybindKey, { label: string; description: string; category: 'Interface' | 'Widget / Éditeur' }> = {
+    splitHorizontal: { label: 'Split horizontal', description: 'Divise le panel actif en deux colonnes', category: 'Interface' },
+    splitVertical:   { label: 'Split vertical',   description: 'Divise le panel actif en deux lignes', category: 'Interface' },
+    closePanel:      { label: 'Fermer le panel',   description: 'Ferme le panel actif', category: 'Interface' },
+    toggleSidebar:   { label: 'Afficher/masquer la sidebar', description: 'Bascule la visibilité de la barre latérale', category: 'Interface' },
+    saveFile:        { label: 'Sauvegarder le fichier', description: 'Enregistre le fichier ouvert dans l\'éditeur', category: 'Widget / Éditeur' },
+  };
+
+  // Action Svelte pour focus automatique sans autofocus HTML
+  function focusOnMount(node: HTMLElement) {
+    node.focus();
+  }
+
+  // Touche en cours de capture
+  let capturing = $state<KeybindKey | null>(null);
+  let captureError = $state<string | null>(null);
+
+  function formatKey(key: string) {
+    if (key === '\\') return 'Backslash';
+    if (key === '-') return '-';
+    return key.toUpperCase();
+  }
+
+  // Retourne la liste des conflits pour une touche donnée (en excluant la clé elle-même)
+  function findConflicts(selfKey: KeybindKey, key: string): string[] {
+    return (Object.keys(settings.keybinds) as KeybindKey[])
+      .filter(k => k !== selfKey && settings.keybinds[k] === key)
+      .map(k => KEYBIND_LABELS[k].label);
+  }
+
+  function startCapture(key: KeybindKey) {
+    capturing = key;
+    captureError = null;
+  }
+
+  function handleCaptureKeydown(e: KeyboardEvent) {
+    if (!capturing) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.key === 'Escape') {
+      capturing = null;
+      captureError = null;
+      return;
+    }
+
+    // Ignorer les touches modificatrices seules
+    if (['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) return;
+
+    const normalizedKey = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+
+    if (BLOCKED_KEYS.has(normalizedKey)) {
+      captureError = `La combinaison Mod+${formatKey(normalizedKey)} est réservée et ne peut pas être assignée.`;
+      return;
+    }
+
+    settings.setKeybinds({ [capturing]: normalizedKey });
+    capturing = null;
+    captureError = null;
+  }
 
   const INDENT_OPTIONS = [
     { value: 2, label: '2 espaces' },
@@ -323,6 +386,76 @@
         </div>
 
       </div>
+    </section>
+
+    <!-- Section : Raccourcis clavier -->
+    <section class="mb-10">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Raccourcis clavier
+        </h2>
+        <button
+          onclick={() => settings.resetKeybinds()}
+          class="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <RotateCcw class="h-3 w-3" />
+          Réinitialiser
+        </button>
+      </div>
+
+      {#if captureError}
+        <div class="mb-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <AlertTriangle class="h-3.5 w-3.5 shrink-0" />
+          {captureError}
+        </div>
+      {/if}
+
+      {#each (['Interface', 'Widget / Éditeur'] as const) as category}
+        {@const entries = (Object.keys(KEYBIND_LABELS) as KeybindKey[]).filter(k => KEYBIND_LABELS[k].category === category)}
+        <div class="mb-6">
+          <p class="mb-2 text-xs font-medium text-muted-foreground">{category}</p>
+          <div class="divide-y divide-border rounded-lg border border-border bg-card">
+            {#each entries as key}
+              {@const meta = KEYBIND_LABELS[key]}
+              {@const currentKey = settings.keybinds[key]}
+              {@const conflicts = findConflicts(key, currentKey)}
+              {@const isCapturing = capturing === key}
+              <div class="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p class="text-sm font-medium">{meta.label}</p>
+                  <p class="text-xs text-muted-foreground">{meta.description}</p>
+                  {#if conflicts.length > 0}
+                    <p class="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                      <AlertTriangle class="h-3 w-3" />
+                      Conflit avec : {conflicts.join(', ')}
+                    </p>
+                  {/if}
+                </div>
+                <div class="flex items-center gap-2">
+                  {#if isCapturing}
+                    <button
+                      class="min-w-32 rounded-md border-2 border-primary bg-primary/10 px-3 py-1 text-center text-xs font-mono text-primary focus:outline-none animate-pulse"
+                      onkeydown={handleCaptureKeydown}
+                      onblur={() => { capturing = null; captureError = null; }}
+                      use:focusOnMount
+                    >
+                      Appuyez sur une touche…
+                    </button>
+                  {:else}
+                    <button
+                      onclick={() => startCapture(key)}
+                      class="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <Keyboard class="h-3 w-3" />
+                      <kbd class="font-mono">Mod+{formatKey(currentKey)}</kbd>
+                    </button>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/each}
     </section>
   </div>
 </div>
