@@ -2,9 +2,9 @@
   import { PaneGroup, Pane, PaneResizer } from 'paneforge';
   import { isPanel } from '$lib/types';
   import type { PanelNode, Widget } from '$lib/types';
-  import CodeWidget from './widgets/CodeWidget.svelte';
-  import TerminalWidget from './widgets/TerminalWidget.svelte';
-  import BrowserWidget from './widgets/BrowserWidget.svelte';
+  import CodeWidget from './widgets/CodeWidget/CodeWidget.svelte';
+  import TerminalWidget from './widgets/TerminalWidget/TerminalWidget.svelte';
+  import BrowserWidget from './widgets/BrowserWidget/BrowserWidget.svelte';
   import WidgetPicker from './WidgetPicker.svelte';
   import PanelOverlay from './PanelOverlay.svelte';
   import LayoutEngine from './LayoutEngine.svelte';

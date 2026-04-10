@@ -10,11 +10,12 @@
     $props();
 
   let urlInput = $state(
-    untrack(() => (config.url as string | undefined) ?? settings.browser.defaultUrl)
+    untrack(
+      () => (config.url as string | undefined) ?? settings.browser.defaultUrl
+    )
   );
   let error = $state<string | null>(null);
   let loading = $state(false);
-  let refreshRotation = $state(0);
 
   let container: HTMLDivElement;
   let unlistenUrl: (() => void) | null = null;
@@ -37,14 +38,22 @@
       urlInput = event.payload;
       loading = false;
       store.updateWidgetConfig(nodeId, { url: event.payload });
-      try { store.setAutoLabel(nodeId, new URL(event.payload).hostname); } catch { /* ignore */ }
+      try {
+        store.setAutoLabel(nodeId, new URL(event.payload).hostname);
+      } catch {
+        /* ignore */
+      }
     });
 
     unlistenTitle = await listen<string>(`browser_title:${nodeId}`, event => {
       if (event.payload) {
         store.setAutoLabel(nodeId, event.payload);
       } else {
-        try { store.setAutoLabel(nodeId, new URL(urlInput).hostname); } catch { /* ignore */ }
+        try {
+          store.setAutoLabel(nodeId, new URL(urlInput).hostname);
+        } catch {
+          /* ignore */
+        }
       }
     });
 
@@ -109,7 +118,6 @@
     });
   }
   function refresh() {
-    refreshRotation += 90;
     loading = true;
     invoke('browser_refresh', { id: nodeId }).catch(() => {
       loading = false;
@@ -142,8 +150,9 @@
       title="Actualiser"
     >
       <RotateCw
-        class="h-3.5 w-3.5 transition-transform duration-200"
-        style="transform: rotate({refreshRotation}deg)"
+        class="h-3.5 w-3.5 transition-transform duration-200 {loading
+          ? 'animate-spin'
+          : ''}"
       />
     </button>
 

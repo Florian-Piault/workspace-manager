@@ -5,9 +5,9 @@
   import { flatWidgets } from '$lib/layout';
   import LayoutEngine from '$lib/components/LayoutEngine.svelte';
   import PanelOverlay from '$lib/components/PanelOverlay.svelte';
-  import CodeWidget from '$lib/components/widgets/CodeWidget.svelte';
-  import TerminalWidget from '$lib/components/widgets/TerminalWidget.svelte';
-  import BrowserWidget from '$lib/components/widgets/BrowserWidget.svelte';
+  import CodeWidget from '$lib/components/widgets/CodeWidget/CodeWidget.svelte';
+  import TerminalWidget from '$lib/components/widgets/TerminalWidget/TerminalWidget.svelte';
+  import BrowserWidget from '$lib/components/widgets/BrowserWidget/BrowserWidget.svelte';
 
   let storeReady = $state(false);
 
