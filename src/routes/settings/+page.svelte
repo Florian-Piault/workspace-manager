@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { theme } from '$lib/theme.svelte';
   import { settings, TERMINAL_COLOR_PRESETS, KEYBIND_DEFAULTS, BLOCKED_KEYS, type KeybindSettings } from '$lib/settings.svelte';
   import { Sun, Moon, RotateCcw, AlertTriangle, Keyboard } from '@lucide/svelte';
@@ -13,12 +14,15 @@
     saveFile:        { label: 'Sauvegarder le fichier', description: 'Enregistre le fichier ouvert dans l\'éditeur', category: 'Widget / Éditeur' },
   };
 
-  // Action Svelte pour focus automatique sans autofocus HTML
+  const KEYBIND_CATEGORY_IDS = {
+    'Interface': 'raccourcis-interface',
+    'Widget / Éditeur': 'raccourcis-widgets',
+  } as const;
+
   function focusOnMount(node: HTMLElement) {
     node.focus();
   }
 
-  // Touche en cours de capture
   let capturing = $state<KeybindKey | null>(null);
   let captureError = $state<string | null>(null);
 
@@ -28,7 +32,6 @@
     return key.toUpperCase();
   }
 
-  // Retourne la liste des conflits pour une touche donnée (en excluant la clé elle-même)
   function findConflicts(selfKey: KeybindKey, key: string): string[] {
     return (Object.keys(settings.keybinds) as KeybindKey[])
       .filter(k => k !== selfKey && settings.keybinds[k] === key)
@@ -51,7 +54,6 @@
       return;
     }
 
-    // Ignorer les touches modificatrices seules
     if (['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) return;
 
     const normalizedKey = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -97,6 +99,68 @@
     { value: 5000, label: '5 s' },
     { value: 10000, label: '10 s' },
   ] as const;
+
+  // ── TOC ──────────────────────────────────────────────────────────────────────
+
+  type TocChild = { id: string; label: string };
+  type TocEntry = { id: string; label: string; children?: TocChild[] };
+
+  const TOC: TocEntry[] = [
+    { id: 'apparence',  label: 'Apparence' },
+    { id: 'general',    label: 'Général' },
+    { id: 'terminal',   label: 'Terminal' },
+    { id: 'navigateur', label: 'Navigateur' },
+    { id: 'editeur',    label: 'Éditeur de code' },
+    {
+      id: 'raccourcis',
+      label: 'Raccourcis clavier',
+      children: [
+        { id: 'raccourcis-interface', label: 'Interface' },
+        { id: 'raccourcis-widgets',   label: 'Widget / Éditeur' },
+      ],
+    },
+  ];
+
+  const TOC_ALL_IDS = TOC.flatMap(s => [s.id, ...(s.children?.map(c => c.id) ?? [])]);
+
+  let activeId = $state('apparence');
+  let scrollEl: HTMLElement;
+  const SCROLL_KEY = 'settings-toc-scroll';
+
+  function updateActive() {
+    if (!scrollEl) return;
+    const containerRect = scrollEl.getBoundingClientRect();
+    const threshold = containerRect.top + containerRect.height * 0.3;
+    let current = TOC_ALL_IDS[0];
+    for (const id of TOC_ALL_IDS) {
+      const el = document.getElementById(id);
+      if (el && el.getBoundingClientRect().top <= threshold) current = id;
+    }
+    activeId = current;
+  }
+
+  onMount(() => {
+    const saved = sessionStorage.getItem(SCROLL_KEY);
+    if (saved) scrollEl.scrollTop = parseInt(saved);
+
+    const handleScroll = () => {
+      sessionStorage.setItem(SCROLL_KEY, String(scrollEl.scrollTop));
+      updateActive();
+    };
+
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    updateActive();
+
+    return () => scrollEl.removeEventListener('scroll', handleScroll);
+  });
+
+  function scrollToSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function isSectionActive(entry: TocEntry) {
+    return activeId === entry.id || entry.children?.some(c => c.id === activeId) === true;
+  }
 </script>
 
 {#snippet toggle(checked: boolean, label: string, onchange: (v: boolean) => void)}
@@ -115,372 +179,419 @@
   </button>
 {/snippet}
 
-<div class="h-full overflow-auto">
-  <div class="mx-auto max-w-2xl px-8 py-10">
-    <h1 class="mb-10 text-xl font-semibold">Paramètres</h1>
+<div class="h-full overflow-auto" bind:this={scrollEl}>
+  <div class="flex items-start justify-center gap-12 px-8 py-10
+              {settings.general.sidebarPosition === 'right' ? 'flex-row-reverse' : ''}">
 
-    <!-- Section : Apparence -->
-    <section class="mb-10">
-      <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Apparence
-      </h2>
-      <div class="rounded-lg border border-border bg-card">
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Thème</p>
-            <p class="text-xs text-muted-foreground">Mode clair ou sombre</p>
-          </div>
-          <button
-            class="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-            onclick={theme.toggle}
-          >
-            {#if theme.dark}
-              <Moon class="h-3.5 w-3.5" /><span>Sombre</span>
-            {:else}
-              <Sun class="h-3.5 w-3.5" /><span>Clair</span>
-            {/if}
-          </button>
-        </div>
-      </div>
-    </section>
+    <!-- ── Main content ─────────────────────────────────────────────────────── -->
+    <div class="w-full max-w-2xl">
+      <h1 class="mb-10 text-xl font-semibold">Paramètres</h1>
 
-    <!-- Section : Général -->
-    <section class="mb-10">
-      <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Général
-      </h2>
-      <div class="divide-y divide-border rounded-lg border border-border bg-card">
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Position de la sidebar</p>
-            <p class="text-xs text-muted-foreground">Côté gauche ou droit de la fenêtre</p>
-          </div>
-          <div class="flex overflow-hidden rounded-md border border-border">
+      <!-- Section : Apparence -->
+      <section id="apparence" class="mb-10">
+        <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Apparence
+        </h2>
+        <div class="rounded-lg border border-border bg-card">
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Thème</p>
+              <p class="text-xs text-muted-foreground">Mode clair ou sombre</p>
+            </div>
             <button
-              onclick={() => settings.setGeneral({ sidebarPosition: 'left' })}
-              class="px-3 py-1 text-sm transition-colors
-                     {settings.general.sidebarPosition === 'left'
-                       ? 'bg-primary text-primary-foreground'
-                       : 'bg-background text-foreground hover:bg-accent'}"
-            >Gauche</button>
-            <button
-              onclick={() => settings.setGeneral({ sidebarPosition: 'right' })}
-              class="border-l border-border px-3 py-1 text-sm transition-colors
-                     {settings.general.sidebarPosition === 'right'
-                       ? 'bg-primary text-primary-foreground'
-                       : 'bg-background text-foreground hover:bg-accent'}"
-            >Droite</button>
+              class="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+              onclick={theme.toggle}
+            >
+              {#if theme.dark}
+                <Moon class="h-3.5 w-3.5" /><span>Sombre</span>
+              {:else}
+                <Sun class="h-3.5 w-3.5" /><span>Clair</span>
+              {/if}
+            </button>
           </div>
         </div>
+      </section>
 
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Rouvrir le dernier workspace</p>
-            <p class="text-xs text-muted-foreground">Restaure automatiquement le workspace actif au démarrage</p>
+      <!-- Section : Général -->
+      <section id="general" class="mb-10">
+        <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Général
+        </h2>
+        <div class="divide-y divide-border rounded-lg border border-border bg-card">
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Position de la sidebar</p>
+              <p class="text-xs text-muted-foreground">Côté gauche ou droit de la fenêtre</p>
+            </div>
+            <div class="flex overflow-hidden rounded-md border border-border">
+              <button
+                onclick={() => settings.setGeneral({ sidebarPosition: 'left' })}
+                class="px-3 py-1 text-sm transition-colors
+                       {settings.general.sidebarPosition === 'left'
+                         ? 'bg-primary text-primary-foreground'
+                         : 'bg-background text-foreground hover:bg-accent'}"
+              >Gauche</button>
+              <button
+                onclick={() => settings.setGeneral({ sidebarPosition: 'right' })}
+                class="border-l border-border px-3 py-1 text-sm transition-colors
+                       {settings.general.sidebarPosition === 'right'
+                         ? 'bg-primary text-primary-foreground'
+                         : 'bg-background text-foreground hover:bg-accent'}"
+              >Droite</button>
+            </div>
           </div>
-          {@render toggle(settings.general.reopenLastWorkspace, 'Rouvrir le dernier workspace', (v) => settings.setGeneral({ reopenLastWorkspace: v }))}
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Rouvrir le dernier workspace</p>
+              <p class="text-xs text-muted-foreground">Restaure automatiquement le workspace actif au démarrage</p>
+            </div>
+            {@render toggle(settings.general.reopenLastWorkspace, 'Rouvrir le dernier workspace', (v) => settings.setGeneral({ reopenLastWorkspace: v }))}
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Confirmer la fermeture d'un workspace</p>
+              <p class="text-xs text-muted-foreground">Demande une confirmation avant de fermer</p>
+            </div>
+            {@render toggle(settings.general.confirmCloseWorkspace, 'Confirmer fermeture workspace', (v) => settings.setGeneral({ confirmCloseWorkspace: v }))}
+          </div>
+
         </div>
+      </section>
 
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Confirmer la fermeture d'un workspace</p>
-            <p class="text-xs text-muted-foreground">Demande une confirmation avant de fermer</p>
+      <!-- Section : Terminal -->
+      <section id="terminal" class="mb-10">
+        <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Terminal
+        </h2>
+        <div class="divide-y divide-border rounded-lg border border-border bg-card">
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Taille de police</p>
+              <p class="text-xs text-muted-foreground">En pixels (10–24)</p>
+            </div>
+            <input
+              type="number"
+              min="10"
+              max="24"
+              value={settings.terminal.fontSize}
+              oninput={(e) => {
+                const v = parseInt((e.target as HTMLInputElement).value);
+                if (v >= 10 && v <= 24) settings.setTerminal({ fontSize: v });
+              }}
+              class="w-16 rounded-md border border-border bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
-          {@render toggle(settings.general.confirmCloseWorkspace, 'Confirmer fermeture workspace', (v) => settings.setGeneral({ confirmCloseWorkspace: v }))}
-        </div>
 
-      </div>
-    </section>
-
-    <!-- Section : Terminal -->
-    <section class="mb-10">
-      <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Terminal
-      </h2>
-      <div class="divide-y divide-border rounded-lg border border-border bg-card">
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Taille de police</p>
-            <p class="text-xs text-muted-foreground">En pixels (10–24)</p>
-          </div>
-          <input
-            type="number"
-            min="10"
-            max="24"
-            value={settings.terminal.fontSize}
-            oninput={(e) => {
-              const v = parseInt((e.target as HTMLInputElement).value);
-              if (v >= 10 && v <= 24) settings.setTerminal({ fontSize: v });
-            }}
-            class="w-16 rounded-md border border-border bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Type de curseur</p>
-            <p class="text-xs text-muted-foreground">Forme du curseur dans le terminal</p>
-          </div>
-          <select
-            value={settings.terminal.cursorStyle}
-            onchange={(e) => settings.setTerminal({ cursorStyle: (e.target as HTMLSelectElement).value as 'block' | 'bar' | 'underline' })}
-            class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {#each CURSOR_STYLE_OPTIONS as opt}
-              <option value={opt.value}>{opt.label}</option>
-            {/each}
-          </select>
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Curseur clignotant</p>
-            <p class="text-xs text-muted-foreground">Animation du curseur dans le terminal</p>
-          </div>
-          {@render toggle(settings.terminal.cursorBlink, 'Curseur clignotant', (v) => settings.setTerminal({ cursorBlink: v }))}
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Thème de couleurs</p>
-            <p class="text-xs text-muted-foreground">Palette de couleurs du terminal</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <span
-              class="h-4 w-4 rounded-full border border-border"
-              style="background: {TERMINAL_COLOR_PRESETS[settings.terminal.colorPreset].background}"
-            ></span>
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Type de curseur</p>
+              <p class="text-xs text-muted-foreground">Forme du curseur dans le terminal</p>
+            </div>
             <select
-              value={settings.terminal.colorPreset}
-              onchange={(e) => settings.setTerminal({ colorPreset: (e.target as HTMLSelectElement).value as 'dark' | 'solarizedDark' | 'light' })}
+              value={settings.terminal.cursorStyle}
+              onchange={(e) => settings.setTerminal({ cursorStyle: (e.target as HTMLSelectElement).value as 'block' | 'bar' | 'underline' })}
               class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              {#each TERMINAL_PRESET_OPTIONS as opt}
+              {#each CURSOR_STYLE_OPTIONS as opt}
                 <option value={opt.value}>{opt.label}</option>
               {/each}
             </select>
           </div>
-        </div>
 
-      </div>
-    </section>
-
-    <!-- Section : Navigateur -->
-    <section class="mb-10">
-      <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Navigateur
-      </h2>
-      <div class="rounded-lg border border-border bg-card">
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">URL par défaut</p>
-            <p class="text-xs text-muted-foreground">Chargée à l'ouverture d'un nouveau widget navigateur</p>
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Curseur clignotant</p>
+              <p class="text-xs text-muted-foreground">Animation du curseur dans le terminal</p>
+            </div>
+            {@render toggle(settings.terminal.cursorBlink, 'Curseur clignotant', (v) => settings.setTerminal({ cursorBlink: v }))}
           </div>
-          <input
-            type="url"
-            value={settings.browser.defaultUrl}
-            onchange={(e) => settings.setBrowser({ defaultUrl: (e.target as HTMLInputElement).value })}
-            placeholder="https://..."
-            class="w-52 rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-      </div>
-    </section>
 
-    <!-- Section : Éditeur de code -->
-    <section class="mb-10">
-      <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Éditeur de code
-      </h2>
-      <div class="divide-y divide-border rounded-lg border border-border bg-card">
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Numéros de ligne</p>
-            <p class="text-xs text-muted-foreground">Affiche les numéros à gauche de l'éditeur</p>
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Thème de couleurs</p>
+              <p class="text-xs text-muted-foreground">Palette de couleurs du terminal</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span
+                class="h-4 w-4 rounded-full border border-border"
+                style="background: {TERMINAL_COLOR_PRESETS[settings.terminal.colorPreset].background}"
+              ></span>
+              <select
+                value={settings.terminal.colorPreset}
+                onchange={(e) => settings.setTerminal({ colorPreset: (e.target as HTMLSelectElement).value as 'dark' | 'solarizedDark' | 'light' })}
+                class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {#each TERMINAL_PRESET_OPTIONS as opt}
+                  <option value={opt.value}>{opt.label}</option>
+                {/each}
+              </select>
+            </div>
           </div>
-          {@render toggle(settings.editor.lineNumbers, 'Numéros de ligne', (v) => settings.setEditor({ lineNumbers: v }))}
+
         </div>
+      </section>
 
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Retour à la ligne automatique</p>
-            <p class="text-xs text-muted-foreground">Wrap le texte long sans défilement horizontal</p>
-          </div>
-          {@render toggle(settings.editor.wordWrap, 'Retour à la ligne', (v) => settings.setEditor({ wordWrap: v }))}
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Surligner la ligne active</p>
-            <p class="text-xs text-muted-foreground">Met en évidence la ligne où se trouve le curseur</p>
-          </div>
-          {@render toggle(settings.editor.highlightActiveLine, 'Surligner la ligne active', (v) => settings.setEditor({ highlightActiveLine: v }))}
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Auto-complétion</p>
-            <p class="text-xs text-muted-foreground">Suggestions de complétion pendant la saisie</p>
-          </div>
-          {@render toggle(settings.editor.autocompletion, 'Auto-complétion', (v) => settings.setEditor({ autocompletion: v }))}
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Lint</p>
-            <p class="text-xs text-muted-foreground">Indique les erreurs et avertissements dans la gouttière</p>
-          </div>
-          {@render toggle(settings.editor.lint, 'Lint', (v) => settings.setEditor({ lint: v }))}
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Lecture seule</p>
-            <p class="text-xs text-muted-foreground">Désactive l'édition dans tous les éditeurs</p>
-          </div>
-          {@render toggle(settings.editor.readOnly, 'Lecture seule', (v) => settings.setEditor({ readOnly: v }))}
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Taille de police</p>
-            <p class="text-xs text-muted-foreground">En pixels (10–24)</p>
-          </div>
-          <input
-            type="number"
-            min="10"
-            max="24"
-            value={settings.editor.fontSize}
-            oninput={(e) => {
-              const v = parseInt((e.target as HTMLInputElement).value);
-              if (v >= 10 && v <= 24) settings.setEditor({ fontSize: v });
-            }}
-            class="w-16 rounded-md border border-border bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Indentation</p>
-            <p class="text-xs text-muted-foreground">Nombre d'espaces par niveau</p>
-          </div>
-          <select
-            value={settings.editor.indentUnit}
-            onchange={(e) => settings.setEditor({ indentUnit: parseInt((e.target as HTMLSelectElement).value) as 2 | 4 | 8 })}
-            class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {#each INDENT_OPTIONS as opt}
-              <option value={opt.value}>{opt.label}</option>
-            {/each}
-          </select>
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Thème de l'éditeur</p>
-            <p class="text-xs text-muted-foreground">Coloration syntaxique</p>
-          </div>
-          <select
-            value={settings.editor.editorTheme}
-            onchange={(e) => settings.setEditor({ editorTheme: (e.target as HTMLSelectElement).value as 'oneDark' | 'default' })}
-            class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {#each EDITOR_THEME_OPTIONS as opt}
-              <option value={opt.value}>{opt.label}</option>
-            {/each}
-          </select>
-        </div>
-
-        <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium">Délai de sauvegarde automatique</p>
-            <p class="text-xs text-muted-foreground">0 = désactivée, sinon délai en millisecondes après la dernière frappe</p>
-          </div>
-          <select
-            value={settings.editor.autoSaveDelay}
-            onchange={(e) => settings.setEditor({ autoSaveDelay: parseInt((e.target as HTMLSelectElement).value) })}
-            class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {#each AUTOSAVE_OPTIONS as opt}
-              <option value={opt.value}>{opt.label}</option>
-            {/each}
-          </select>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- Section : Raccourcis clavier -->
-    <section class="mb-10">
-      <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Raccourcis clavier
+      <!-- Section : Navigateur -->
+      <section id="navigateur" class="mb-10">
+        <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Navigateur
         </h2>
-        <button
-          onclick={() => settings.resetKeybinds()}
-          class="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-        >
-          <RotateCcw class="h-3 w-3" />
-          Réinitialiser
-        </button>
-      </div>
-
-      {#if captureError}
-        <div class="mb-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          <AlertTriangle class="h-3.5 w-3.5 shrink-0" />
-          {captureError}
-        </div>
-      {/if}
-
-      {#each (['Interface', 'Widget / Éditeur'] as const) as category}
-        {@const entries = (Object.keys(KEYBIND_LABELS) as KeybindKey[]).filter(k => KEYBIND_LABELS[k].category === category)}
-        <div class="mb-6">
-          <p class="mb-2 text-xs font-medium text-muted-foreground">{category}</p>
-          <div class="divide-y divide-border rounded-lg border border-border bg-card">
-            {#each entries as key}
-              {@const meta = KEYBIND_LABELS[key]}
-              {@const currentKey = settings.keybinds[key]}
-              {@const conflicts = findConflicts(key, currentKey)}
-              {@const isCapturing = capturing === key}
-              <div class="flex items-center justify-between px-4 py-3">
-                <div>
-                  <p class="text-sm font-medium">{meta.label}</p>
-                  <p class="text-xs text-muted-foreground">{meta.description}</p>
-                  {#if conflicts.length > 0}
-                    <p class="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                      <AlertTriangle class="h-3 w-3" />
-                      Conflit avec : {conflicts.join(', ')}
-                    </p>
-                  {/if}
-                </div>
-                <div class="flex items-center gap-2">
-                  {#if isCapturing}
-                    <button
-                      class="min-w-32 rounded-md border-2 border-primary bg-primary/10 px-3 py-1 text-center text-xs font-mono text-primary focus:outline-none animate-pulse"
-                      onkeydown={handleCaptureKeydown}
-                      onblur={() => { capturing = null; captureError = null; }}
-                      use:focusOnMount
-                    >
-                      Appuyez sur une touche…
-                    </button>
-                  {:else}
-                    <button
-                      onclick={() => startCapture(key)}
-                      class="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <Keyboard class="h-3 w-3" />
-                      <kbd class="font-mono">Mod+{formatKey(currentKey)}</kbd>
-                    </button>
-                  {/if}
-                </div>
-              </div>
-            {/each}
+        <div class="rounded-lg border border-border bg-card">
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">URL par défaut</p>
+              <p class="text-xs text-muted-foreground">Chargée à l'ouverture d'un nouveau widget navigateur</p>
+            </div>
+            <input
+              type="url"
+              value={settings.browser.defaultUrl}
+              onchange={(e) => settings.setBrowser({ defaultUrl: (e.target as HTMLInputElement).value })}
+              placeholder="https://..."
+              class="w-52 rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
         </div>
-      {/each}
-    </section>
+      </section>
+
+      <!-- Section : Éditeur de code -->
+      <section id="editeur" class="mb-10">
+        <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Éditeur de code
+        </h2>
+        <div class="divide-y divide-border rounded-lg border border-border bg-card">
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Numéros de ligne</p>
+              <p class="text-xs text-muted-foreground">Affiche les numéros à gauche de l'éditeur</p>
+            </div>
+            {@render toggle(settings.editor.lineNumbers, 'Numéros de ligne', (v) => settings.setEditor({ lineNumbers: v }))}
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Retour à la ligne automatique</p>
+              <p class="text-xs text-muted-foreground">Wrap le texte long sans défilement horizontal</p>
+            </div>
+            {@render toggle(settings.editor.wordWrap, 'Retour à la ligne', (v) => settings.setEditor({ wordWrap: v }))}
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Surligner la ligne active</p>
+              <p class="text-xs text-muted-foreground">Met en évidence la ligne où se trouve le curseur</p>
+            </div>
+            {@render toggle(settings.editor.highlightActiveLine, 'Surligner la ligne active', (v) => settings.setEditor({ highlightActiveLine: v }))}
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Auto-complétion</p>
+              <p class="text-xs text-muted-foreground">Suggestions de complétion pendant la saisie</p>
+            </div>
+            {@render toggle(settings.editor.autocompletion, 'Auto-complétion', (v) => settings.setEditor({ autocompletion: v }))}
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Lint</p>
+              <p class="text-xs text-muted-foreground">Indique les erreurs et avertissements dans la gouttière</p>
+            </div>
+            {@render toggle(settings.editor.lint, 'Lint', (v) => settings.setEditor({ lint: v }))}
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Lecture seule</p>
+              <p class="text-xs text-muted-foreground">Désactive l'édition dans tous les éditeurs</p>
+            </div>
+            {@render toggle(settings.editor.readOnly, 'Lecture seule', (v) => settings.setEditor({ readOnly: v }))}
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Taille de police</p>
+              <p class="text-xs text-muted-foreground">En pixels (10–24)</p>
+            </div>
+            <input
+              type="number"
+              min="10"
+              max="24"
+              value={settings.editor.fontSize}
+              oninput={(e) => {
+                const v = parseInt((e.target as HTMLInputElement).value);
+                if (v >= 10 && v <= 24) settings.setEditor({ fontSize: v });
+              }}
+              class="w-16 rounded-md border border-border bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Indentation</p>
+              <p class="text-xs text-muted-foreground">Nombre d'espaces par niveau</p>
+            </div>
+            <select
+              value={settings.editor.indentUnit}
+              onchange={(e) => settings.setEditor({ indentUnit: parseInt((e.target as HTMLSelectElement).value) as 2 | 4 | 8 })}
+              class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {#each INDENT_OPTIONS as opt}
+                <option value={opt.value}>{opt.label}</option>
+              {/each}
+            </select>
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Thème de l'éditeur</p>
+              <p class="text-xs text-muted-foreground">Coloration syntaxique</p>
+            </div>
+            <select
+              value={settings.editor.editorTheme}
+              onchange={(e) => settings.setEditor({ editorTheme: (e.target as HTMLSelectElement).value as 'oneDark' | 'default' })}
+              class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {#each EDITOR_THEME_OPTIONS as opt}
+                <option value={opt.value}>{opt.label}</option>
+              {/each}
+            </select>
+          </div>
+
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Délai de sauvegarde automatique</p>
+              <p class="text-xs text-muted-foreground">0 = désactivée, sinon délai en millisecondes après la dernière frappe</p>
+            </div>
+            <select
+              value={settings.editor.autoSaveDelay}
+              onchange={(e) => settings.setEditor({ autoSaveDelay: parseInt((e.target as HTMLSelectElement).value) })}
+              class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {#each AUTOSAVE_OPTIONS as opt}
+                <option value={opt.value}>{opt.label}</option>
+              {/each}
+            </select>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Section : Raccourcis clavier -->
+      <section id="raccourcis" class="mb-10">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Raccourcis clavier
+          </h2>
+          <button
+            onclick={() => settings.resetKeybinds()}
+            class="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            <RotateCcw class="h-3 w-3" />
+            Réinitialiser
+          </button>
+        </div>
+
+        {#if captureError}
+          <div class="mb-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            <AlertTriangle class="h-3.5 w-3.5 shrink-0" />
+            {captureError}
+          </div>
+        {/if}
+
+        {#each (['Interface', 'Widget / Éditeur'] as const) as category}
+          {@const entries = (Object.keys(KEYBIND_LABELS) as KeybindKey[]).filter(k => KEYBIND_LABELS[k].category === category)}
+          <div class="mb-6" id={KEYBIND_CATEGORY_IDS[category]}>
+            <p class="mb-2 text-xs font-medium text-muted-foreground">{category}</p>
+            <div class="divide-y divide-border rounded-lg border border-border bg-card">
+              {#each entries as key}
+                {@const meta = KEYBIND_LABELS[key]}
+                {@const currentKey = settings.keybinds[key]}
+                {@const conflicts = findConflicts(key, currentKey)}
+                {@const isCapturing = capturing === key}
+                <div class="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p class="text-sm font-medium">{meta.label}</p>
+                    <p class="text-xs text-muted-foreground">{meta.description}</p>
+                    {#if conflicts.length > 0}
+                      <p class="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                        <AlertTriangle class="h-3 w-3" />
+                        Conflit avec : {conflicts.join(', ')}
+                      </p>
+                    {/if}
+                  </div>
+                  <div class="flex items-center gap-2">
+                    {#if isCapturing}
+                      <button
+                        class="min-w-32 rounded-md border-2 border-primary bg-primary/10 px-3 py-1 text-center text-xs font-mono text-primary focus:outline-none animate-pulse"
+                        onkeydown={handleCaptureKeydown}
+                        onblur={() => { capturing = null; captureError = null; }}
+                        use:focusOnMount
+                      >
+                        Appuyez sur une touche…
+                      </button>
+                    {:else}
+                      <button
+                        onclick={() => startCapture(key)}
+                        class="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Keyboard class="h-3 w-3" />
+                        <kbd class="font-mono">Mod+{formatKey(currentKey)}</kbd>
+                      </button>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/each}
+      </section>
+    </div>
+
+    <!-- ── Table des matières ────────────────────────────────────────────────── -->
+    <aside class="hidden xl:block w-44 shrink-0 sticky top-10 self-start">
+      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        Sur cette page
+      </p>
+      <nav class="space-y-0.5">
+        {#each TOC as entry}
+          {@const active = isSectionActive(entry)}
+          <div>
+            <button
+              onclick={() => scrollToSection(entry.id)}
+              class="relative flex w-full items-center rounded-md px-3 py-1.5 text-left text-xs transition-all duration-200
+                     {active ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'}"
+            >
+              <!-- Animated left indicator -->
+              <span
+                class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 rounded-full bg-primary transition-all duration-300
+                       {active ? 'h-4 opacity-100' : 'h-0 opacity-0'}"
+              ></span>
+              {entry.label}
+            </button>
+
+            {#if entry.children}
+              <div class="ml-3 mt-0.5 space-y-0.5 border-l border-border pl-2.5">
+                {#each entry.children as child}
+                  {@const childActive = activeId === child.id}
+                  <button
+                    onclick={() => scrollToSection(child.id)}
+                    class="block w-full rounded-md px-2 py-1 text-left text-xs transition-all duration-200
+                           {childActive ? 'text-foreground font-medium' : 'text-muted-foreground/70 hover:text-muted-foreground'}"
+                  >
+                    {child.label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </nav>
+    </aside>
+
   </div>
 </div>
