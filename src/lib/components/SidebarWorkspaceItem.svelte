@@ -64,8 +64,8 @@
   <div
     class="flex items-center gap-1 px-2 py-1.5 group/ws hover:bg-accent/50
              {store.activeWorkspaceId === workspace.id
-      ? 'border-l-2 border-primary pl-[6px]'
-      : 'border-l-2 border-transparent pl-[6px]'}"
+      ? 'border-l-2 border-primary pl-1.5'
+      : 'border-l-2 border-transparent pl-1.5'}"
   >
     <button
       class="p-0.5 text-muted-foreground hover:text-foreground"
@@ -85,7 +85,6 @@
         bind:value={workspaceDraft}
         onblur={confirmRenameWorkspace}
         onkeydown={handleWorkspaceKeydown}
-        autofocus
       />
     {:else}
       <button

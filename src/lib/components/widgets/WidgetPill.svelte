@@ -42,7 +42,9 @@
     if (e.key === 'Escape') editing = false;
   }
 
-  const displayLabel = $derived(widget.label ?? store.autoLabels.get(nodeId) ?? widget.type);
+  const displayLabel = $derived(
+    widget.label ?? store.autoLabels.get(nodeId) ?? widget.type
+  );
 
   // --- Drag logic ---
   let pointerDragSourceId: string | null = null;
@@ -141,7 +143,10 @@
 
   {#if widget.type !== 'empty'}
     {#if store.dirtyWidgets.has(nodeId) && widget.type === 'code'}
-      <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" title="Modifications non sauvegardées"></span>
+      <span
+        class="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400"
+        title="Modifications non sauvegardées"
+      ></span>
     {/if}
     {#if editing}
       <input
@@ -149,11 +154,10 @@
         bind:value={draft}
         onblur={confirmEdit}
         onkeydown={handleKeydown}
-        autofocus
       />
     {:else}
       <button
-        class="max-w-[140px] truncate text-xs text-white/70 hover:text-white"
+        class="max-w-35 truncate text-xs text-white/70 hover:text-white"
         onclick={startEdit}
         title="Double-cliquer pour renommer"
         ondblclick={startEdit}
