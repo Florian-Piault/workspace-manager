@@ -5,6 +5,7 @@
   import CodeWidget from './widgets/CodeWidget/CodeWidget.svelte';
   import TerminalWidget from './widgets/TerminalWidget/TerminalWidget.svelte';
   import BrowserWidget from './widgets/BrowserWidget/BrowserWidget.svelte';
+  import QuickActionWidget from './widgets/QuickActionWidget/QuickActionWidget.svelte';
   import WidgetPicker from './WidgetPicker.svelte';
   import PanelOverlay from './PanelOverlay.svelte';
   import LayoutEngine from './LayoutEngine.svelte';
@@ -41,6 +42,8 @@
       <TerminalWidget config={node.config} nodeId={node.id} />
     {:else if node.type === 'browser'}
       <BrowserWidget config={node.config} nodeId={node.id} />
+    {:else if node.type === 'actions'}
+      <QuickActionWidget config={node.config} nodeId={node.id} />
     {/if}
   </PanelOverlay>
 {/if}

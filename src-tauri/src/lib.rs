@@ -1,8 +1,10 @@
 mod pty;
 mod fs;
 mod browser;
+mod quick_actions;
 
 use pty::PtyManager;
+use quick_actions::ProcessManager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -20,6 +22,12 @@ pub fn run() {
             sql: include_str!("../migrations/002_settings.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "quick_actions",
+            sql: include_str!("../migrations/003_quick_actions.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
@@ -31,6 +39,7 @@ pub fn run() {
                 .build(),
         )
         .manage(PtyManager::new())
+        .manage(ProcessManager::new())
         .invoke_handler(tauri::generate_handler![
             pty::pty_create,
             pty::pty_write,
@@ -48,6 +57,8 @@ pub fn run() {
             browser::browser_forward,
             browser::browser_refresh,
             browser::browser_report_title,
+            quick_actions::qa_execute,
+            quick_actions::qa_kill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

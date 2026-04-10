@@ -6,7 +6,8 @@
     Check,
     Terminal,
     TextAlignStart,
-    Globe
+    Globe,
+    Zap
   } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
@@ -93,7 +94,10 @@
           ? 'text-foreground'
           : 'text-muted-foreground'}
                hover:text-foreground"
-        onclick={() => { store.setActiveWorkspace(workspace.id); goHome(); }}
+        onclick={() => {
+          store.setActiveWorkspace(workspace.id);
+          goHome();
+        }}
         ondblclick={startRenameWorkspace}
         title="Cliquer pour activer, double-cliquer pour renommer"
       >
@@ -112,7 +116,10 @@
         </button>
         <button
           class="p-0.5 text-destructive hover:text-destructive/70"
-          onclick={() => { confirmingClose = false; store.closeWorkspace(workspace.id); }}
+          onclick={() => {
+            confirmingClose = false;
+            store.closeWorkspace(workspace.id);
+          }}
           title="Confirmer"
         >
           <Check class="h-3 w-3" />
@@ -166,6 +173,12 @@
                     ? 'text-foreground'
                     : 'text-muted-foreground'}"
                 />
+              {:else if widget.type === 'actions'}
+                <Zap
+                  class="h-3 w-3 {store.activePanelId === widget.id
+                    ? 'text-foreground'
+                    : 'text-muted-foreground'}"
+                />
               {/if}
               {#if store.savingWidgets.has(widget.id)}
                 <span
@@ -174,7 +187,8 @@
               {/if}
             </span>
             {#if store.dirtyWidgets.has(widget.id)}
-              <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400"></span>
+              <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400"
+              ></span>
             {/if}
             <span
               class="flex-1 truncate text-xs {store.activePanelId === widget.id

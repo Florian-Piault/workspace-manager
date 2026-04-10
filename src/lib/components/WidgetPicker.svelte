@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { TextAlignStart, Terminal, Globe } from '@lucide/svelte';
+  import { TextAlignStart, Terminal, Globe, Zap } from '@lucide/svelte';
   import { store } from '$lib/state.svelte';
   import type { WidgetType } from '$lib/types';
 
@@ -12,7 +12,8 @@
   }[] = [
     { type: 'code', label: 'Code Editor', icon: TextAlignStart },
     { type: 'terminal', label: 'Terminal', icon: Terminal },
-    { type: 'browser', label: 'Browser', icon: Globe }
+    { type: 'browser', label: 'Browser', icon: Globe },
+    { type: 'actions', label: 'Quick Actions', icon: Zap }
   ];
 </script>
 

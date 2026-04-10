@@ -1,4 +1,4 @@
-export type WidgetType = 'code' | 'terminal' | 'browser' | 'empty';
+export type WidgetType = 'code' | 'terminal' | 'browser' | 'actions' | 'empty';
 
 export interface Widget {
   id: string;
