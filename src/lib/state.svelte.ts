@@ -20,6 +20,7 @@ export class WorkspaceStore {
   activePanelId = $state<string | null>(null);
   layouts = $state<Record<string, Layout>>({});
   savingWidgets = $state<Set<string>>(new Set());
+  dirtyWidgets = $state<Set<string>>(new Set());
   maximizedPanelId = $state<string | null>(null);
   draggingWidgetId = $state<string | null>(null);
   dragHoverTargetId = $state<string | null>(null);
@@ -155,6 +156,13 @@ export class WorkspaceStore {
     if (saving) next.add(nodeId);
     else next.delete(nodeId);
     this.savingWidgets = next;
+  }
+
+  setDirty(nodeId: string, dirty: boolean): void {
+    const next = new Set(this.dirtyWidgets);
+    if (dirty) next.add(nodeId);
+    else next.delete(nodeId);
+    this.dirtyWidgets = next;
   }
 
   toggleMaximize(nodeId: string): void {

@@ -88,6 +88,15 @@
     { value: 'bar', label: 'Barre' },
     { value: 'underline', label: 'Souligné' },
   ] as const;
+
+  const AUTOSAVE_OPTIONS = [
+    { value: 0, label: 'Désactivée' },
+    { value: 500, label: '500 ms' },
+    { value: 1000, label: '1 s (défaut)' },
+    { value: 2000, label: '2 s' },
+    { value: 5000, label: '5 s' },
+    { value: 10000, label: '10 s' },
+  ] as const;
 </script>
 
 {#snippet toggle(checked: boolean, label: string, onchange: (v: boolean) => void)}
@@ -380,6 +389,22 @@
             class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {#each EDITOR_THEME_OPTIONS as opt}
+              <option value={opt.value}>{opt.label}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">Délai de sauvegarde automatique</p>
+            <p class="text-xs text-muted-foreground">0 = désactivée, sinon délai en millisecondes après la dernière frappe</p>
+          </div>
+          <select
+            value={settings.editor.autoSaveDelay}
+            onchange={(e) => settings.setEditor({ autoSaveDelay: parseInt((e.target as HTMLSelectElement).value) })}
+            class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {#each AUTOSAVE_OPTIONS as opt}
               <option value={opt.value}>{opt.label}</option>
             {/each}
           </select>

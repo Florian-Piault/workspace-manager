@@ -140,6 +140,9 @@
   {/if}
 
   {#if widget.type !== 'empty'}
+    {#if store.dirtyWidgets.has(nodeId) && widget.type === 'code'}
+      <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" title="Modifications non sauvegardées"></span>
+    {/if}
     {#if editing}
       <input
         class="w-20 bg-transparent text-xs text-white/90 outline-none"

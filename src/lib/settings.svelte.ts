@@ -21,6 +21,7 @@ export interface EditorDefaults {
   autocompletion: boolean;
   lint: boolean;
   editorTheme: 'oneDark' | 'default';
+  autoSaveDelay: number;
 }
 
 export interface TerminalSettings {
@@ -61,6 +62,7 @@ const EDITOR_DEFAULTS: EditorDefaults = {
   autocompletion: true,
   lint: false,
   editorTheme: 'oneDark',
+  autoSaveDelay: 1000,
 };
 
 const TERMINAL_DEFAULTS: TerminalSettings = {

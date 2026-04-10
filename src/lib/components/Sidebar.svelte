@@ -283,7 +283,7 @@
             <Tooltip.Trigger>
               <li>
                 <button
-                  class="flex items-center justify-center rounded p-2 transition-colors
+                  class="relative flex items-center justify-center rounded p-2 transition-colors
                    {store.activeWorkspaceId === workspace.id
                     ? 'bg-accent text-foreground'
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'}"
@@ -294,6 +294,9 @@
                     <FolderOpen class="h-4 w-4" />
                   {:else}
                     <Folder class="h-4 w-4" />
+                  {/if}
+                  {#if store.activeWorkspaceId === workspace.id && store.dirtyWidgets.size > 0}
+                    <span class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-400"></span>
                   {/if}
                 </button>
               </li>

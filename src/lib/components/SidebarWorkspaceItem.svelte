@@ -173,6 +173,9 @@
                 ></span>
               {/if}
             </span>
+            {#if store.dirtyWidgets.has(widget.id)}
+              <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400"></span>
+            {/if}
             <span
               class="flex-1 truncate text-xs {store.activePanelId === widget.id
                 ? 'text-foreground'

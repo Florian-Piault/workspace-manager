@@ -97,6 +97,7 @@
   const effAutocompletion = $derived(eff('autocompletion', true));
   const effLint = $derived(eff('lint', false));
   const effEditorTheme = $derived(eff('editorTheme', 'oneDark'));
+  const effAutoSaveDelay = $derived(eff<number>('autoSaveDelay', 1000));
 
   const SUPPORTED_LANGUAGES = [
     'text',
@@ -199,19 +200,20 @@
   }
 
   function scheduleSave(content: string) {
-    if (!filePath) return;
+    if (!filePath || effAutoSaveDelay === 0) return;
     if (saveTimer !== null) clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
       saveTimer = null;
       store.setSaving(nodeId, true);
       try {
         await invoke('write_file', { path: filePath, content });
+        store.setDirty(nodeId, false);
       } catch (err) {
         console.error('[CodeWidget] write_file failed:', err);
       } finally {
         store.setSaving(nodeId, false);
       }
-    }, 1000);
+    }, effAutoSaveDelay);
   }
 
   // Ctrl+S / Cmd+S — sauvegarde immédiate (annule le debounce en cours)
@@ -221,6 +223,7 @@
     const content = view.state.doc.toString();
     store.setSaving(nodeId, true);
     invoke('write_file', { path: filePath, content })
+      .then(() => store.setDirty(nodeId, false))
       .catch(err => console.error('[CodeWidget] write_file failed:', err))
       .finally(() => store.setSaving(nodeId, false));
   }
@@ -280,6 +283,7 @@
           EditorView.updateListener.of(
             (update: import('@codemirror/view').ViewUpdate) => {
               if (update.docChanged && filePath) {
+                store.setDirty(nodeId, true);
                 scheduleSave(update.state.doc.toString());
               }
             }
@@ -296,6 +300,7 @@
 
   onDestroy(() => {
     if (saveTimer !== null) clearTimeout(saveTimer);
+    store.setDirty(nodeId, false);
     view?.destroy();
   });
 
