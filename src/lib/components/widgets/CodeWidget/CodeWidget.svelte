@@ -226,7 +226,7 @@
           lintComp.of(effLint ? lintGutter() : []),
           editorThemeComp.of(effEditorTheme === 'oneDark' ? oneDark : []),
           EditorView.updateListener.of((update: import('@codemirror/view').ViewUpdate) => {
-            if (update.docChanged && filePath) {
+            if (update.docChanged && filePath && !loading) {
               store.setDirty(nodeId, true);
               scheduleSave(update.state.doc.toString());
             }
