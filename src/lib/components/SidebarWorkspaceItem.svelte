@@ -3,6 +3,7 @@
     ChevronRight,
     ChevronDown,
     X,
+    Check,
     Terminal,
     TextAlignStart,
     Globe
@@ -10,6 +11,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { store } from '$lib/state.svelte';
+  import { settings } from '$lib/settings.svelte';
   import { flatWidgets } from '$lib/layout';
   import type { Workspace } from '$lib/types';
 
@@ -22,6 +24,7 @@
   let collapsed = $state(false);
   let renamingWorkspace = $state(false);
   let workspaceDraft = $state('');
+  let confirmingClose = $state(false);
 
   const layout = $derived(
     workspace.layoutId ? (store.layouts[workspace.layoutId] ?? null) : null
@@ -44,6 +47,14 @@
   function handleWorkspaceKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') confirmRenameWorkspace();
     if (e.key === 'Escape') renamingWorkspace = false;
+  }
+
+  function handleCloseWorkspace() {
+    if (settings.general.confirmCloseWorkspace) {
+      confirmingClose = true;
+    } else {
+      store.closeWorkspace(workspace.id);
+    }
   }
 </script>
 
@@ -90,13 +101,32 @@
       </button>
     {/if}
 
-    <button
-      class="hidden group-hover/ws:flex p-0.5 text-muted-foreground hover:text-destructive"
-      onclick={() => store.closeWorkspace(workspace.id)}
-      title="Fermer le workspace"
-    >
-      <X class="h-3.5 w-3.5" />
-    </button>
+    {#if confirmingClose}
+      <div class="flex items-center gap-0.5">
+        <button
+          class="p-0.5 text-muted-foreground hover:text-foreground"
+          onclick={() => (confirmingClose = false)}
+          title="Annuler"
+        >
+          <X class="h-3 w-3" />
+        </button>
+        <button
+          class="p-0.5 text-destructive hover:text-destructive/70"
+          onclick={() => { confirmingClose = false; store.closeWorkspace(workspace.id); }}
+          title="Confirmer"
+        >
+          <Check class="h-3 w-3" />
+        </button>
+      </div>
+    {:else}
+      <button
+        class="hidden group-hover/ws:flex p-0.5 text-muted-foreground hover:text-destructive"
+        onclick={handleCloseWorkspace}
+        title="Fermer le workspace"
+      >
+        <X class="h-3.5 w-3.5" />
+      </button>
+    {/if}
   </div>
 
   <!-- Widget list -->

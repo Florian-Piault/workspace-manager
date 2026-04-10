@@ -4,14 +4,13 @@
   import { listen } from '@tauri-apps/api/event';
   import { ArrowLeft, ArrowRight, RotateCw, Loader } from '@lucide/svelte';
   import { store } from '$lib/state.svelte';
+  import { settings } from '$lib/settings.svelte';
 
   let { config, nodeId }: { config: Record<string, unknown>; nodeId: string } =
     $props();
 
-  const DEFAULT_URL = 'https://after-glow.fr';
-
   let urlInput = $state(
-    untrack(() => (config.url as string | undefined) ?? DEFAULT_URL)
+    untrack(() => (config.url as string | undefined) ?? settings.browser.defaultUrl)
   );
   let error = $state<string | null>(null);
   let loading = $state(false);

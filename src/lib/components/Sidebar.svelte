@@ -9,6 +9,8 @@
     FolderOpen,
     PanelLeftClose,
     PanelLeftOpen,
+    PanelRightClose,
+    PanelRightOpen,
     X,
     Minus,
     Maximize2,
@@ -21,6 +23,7 @@
   import SidebarWorkspaceItem from './SidebarWorkspaceItem.svelte';
   import type { Workspace } from '$lib/types';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+  import { settings } from '$lib/settings.svelte';
 
   const appWindow = getCurrentWindow();
   const isMac =
@@ -99,7 +102,8 @@
 </script>
 
 <aside
-  class="flex h-full shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 ease-in-out overflow-hidden
+  class="flex h-full shrink-0 flex-col bg-card transition-[width] duration-200 ease-in-out overflow-hidden
+         {settings.general.sidebarPosition === 'right' ? 'border-l' : 'border-r'} border-border
          {collapsed ? 'w-12' : 'w-60'}"
 >
   <!-- Contrôles de fenêtre -->
@@ -247,17 +251,24 @@
       <WorkspaceCreator />
     {/if}
     <button
-      class="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+      class="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors
+             {settings.general.sidebarPosition === 'right' && !collapsed ? 'order-first' : ''}"
       onclick={toggle}
       onmousedown={e => e.stopPropagation()}
-      title={collapsed
-        ? 'Développer la sidebar (⌘B)'
-        : 'Réduire la sidebar (⌘B)'}
+      title={collapsed ? 'Développer la sidebar (⌘B)' : 'Réduire la sidebar (⌘B)'}
     >
-      {#if collapsed}
-        <PanelLeftOpen class="h-4 w-4" />
+      {#if settings.general.sidebarPosition === 'right'}
+        {#if collapsed}
+          <PanelRightOpen class="h-4 w-4" />
+        {:else}
+          <PanelRightClose class="h-4 w-4" />
+        {/if}
       {:else}
-        <PanelLeftClose class="h-4 w-4" />
+        {#if collapsed}
+          <PanelLeftOpen class="h-4 w-4" />
+        {:else}
+          <PanelLeftClose class="h-4 w-4" />
+        {/if}
       {/if}
     </button>
   </div>

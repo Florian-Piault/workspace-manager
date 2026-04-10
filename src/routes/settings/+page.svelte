@@ -1,6 +1,6 @@
 <script lang="ts">
   import { theme } from '$lib/theme.svelte';
-  import { settings } from '$lib/settings.svelte';
+  import { settings, TERMINAL_COLOR_PRESETS } from '$lib/settings.svelte';
   import { Sun, Moon } from '@lucide/svelte';
 
   const INDENT_OPTIONS = [
@@ -12,6 +12,18 @@
   const EDITOR_THEME_OPTIONS = [
     { value: 'oneDark', label: 'One Dark' },
     { value: 'default', label: 'Défaut (clair)' },
+  ] as const;
+
+  const TERMINAL_PRESET_OPTIONS = [
+    { value: 'dark', label: 'Dark (défaut)' },
+    { value: 'solarizedDark', label: 'Solarized Dark' },
+    { value: 'light', label: 'Light' },
+  ] as const;
+
+  const CURSOR_STYLE_OPTIONS = [
+    { value: 'block', label: 'Bloc' },
+    { value: 'bar', label: 'Barre' },
+    { value: 'underline', label: 'Souligné' },
   ] as const;
 </script>
 
@@ -56,6 +68,151 @@
               <Sun class="h-3.5 w-3.5" /><span>Clair</span>
             {/if}
           </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section : Général -->
+    <section class="mb-10">
+      <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        Général
+      </h2>
+      <div class="divide-y divide-border rounded-lg border border-border bg-card">
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">Position de la sidebar</p>
+            <p class="text-xs text-muted-foreground">Côté gauche ou droit de la fenêtre</p>
+          </div>
+          <div class="flex overflow-hidden rounded-md border border-border">
+            <button
+              onclick={() => settings.setGeneral({ sidebarPosition: 'left' })}
+              class="px-3 py-1 text-sm transition-colors
+                     {settings.general.sidebarPosition === 'left'
+                       ? 'bg-primary text-primary-foreground'
+                       : 'bg-background text-foreground hover:bg-accent'}"
+            >Gauche</button>
+            <button
+              onclick={() => settings.setGeneral({ sidebarPosition: 'right' })}
+              class="border-l border-border px-3 py-1 text-sm transition-colors
+                     {settings.general.sidebarPosition === 'right'
+                       ? 'bg-primary text-primary-foreground'
+                       : 'bg-background text-foreground hover:bg-accent'}"
+            >Droite</button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">Rouvrir le dernier workspace</p>
+            <p class="text-xs text-muted-foreground">Restaure automatiquement le workspace actif au démarrage</p>
+          </div>
+          {@render toggle(settings.general.reopenLastWorkspace, 'Rouvrir le dernier workspace', (v) => settings.setGeneral({ reopenLastWorkspace: v }))}
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">Confirmer la fermeture d'un workspace</p>
+            <p class="text-xs text-muted-foreground">Demande une confirmation avant de fermer</p>
+          </div>
+          {@render toggle(settings.general.confirmCloseWorkspace, 'Confirmer fermeture workspace', (v) => settings.setGeneral({ confirmCloseWorkspace: v }))}
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Section : Terminal -->
+    <section class="mb-10">
+      <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        Terminal
+      </h2>
+      <div class="divide-y divide-border rounded-lg border border-border bg-card">
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">Taille de police</p>
+            <p class="text-xs text-muted-foreground">En pixels (10–24)</p>
+          </div>
+          <input
+            type="number"
+            min="10"
+            max="24"
+            value={settings.terminal.fontSize}
+            oninput={(e) => {
+              const v = parseInt((e.target as HTMLInputElement).value);
+              if (v >= 10 && v <= 24) settings.setTerminal({ fontSize: v });
+            }}
+            class="w-16 rounded-md border border-border bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">Type de curseur</p>
+            <p class="text-xs text-muted-foreground">Forme du curseur dans le terminal</p>
+          </div>
+          <select
+            value={settings.terminal.cursorStyle}
+            onchange={(e) => settings.setTerminal({ cursorStyle: (e.target as HTMLSelectElement).value as 'block' | 'bar' | 'underline' })}
+            class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {#each CURSOR_STYLE_OPTIONS as opt}
+              <option value={opt.value}>{opt.label}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">Curseur clignotant</p>
+            <p class="text-xs text-muted-foreground">Animation du curseur dans le terminal</p>
+          </div>
+          {@render toggle(settings.terminal.cursorBlink, 'Curseur clignotant', (v) => settings.setTerminal({ cursorBlink: v }))}
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">Thème de couleurs</p>
+            <p class="text-xs text-muted-foreground">Palette de couleurs du terminal</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span
+              class="h-4 w-4 rounded-full border border-border"
+              style="background: {TERMINAL_COLOR_PRESETS[settings.terminal.colorPreset].background}"
+            ></span>
+            <select
+              value={settings.terminal.colorPreset}
+              onchange={(e) => settings.setTerminal({ colorPreset: (e.target as HTMLSelectElement).value as 'dark' | 'solarizedDark' | 'light' })}
+              class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {#each TERMINAL_PRESET_OPTIONS as opt}
+                <option value={opt.value}>{opt.label}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Section : Navigateur -->
+    <section class="mb-10">
+      <h2 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        Navigateur
+      </h2>
+      <div class="rounded-lg border border-border bg-card">
+        <div class="flex items-center justify-between px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">URL par défaut</p>
+            <p class="text-xs text-muted-foreground">Chargée à l'ouverture d'un nouveau widget navigateur</p>
+          </div>
+          <input
+            type="url"
+            value={settings.browser.defaultUrl}
+            onchange={(e) => settings.setBrowser({ defaultUrl: (e.target as HTMLInputElement).value })}
+            placeholder="https://..."
+            class="w-52 rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
         </div>
       </div>
     </section>

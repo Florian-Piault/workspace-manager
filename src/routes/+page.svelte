@@ -1,12 +1,35 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { store } from '$lib/state.svelte';
+  import { settings } from '$lib/settings.svelte';
   import { flatWidgets } from '$lib/layout';
   import LayoutEngine from '$lib/components/LayoutEngine.svelte';
   import PanelOverlay from '$lib/components/PanelOverlay.svelte';
   import CodeWidget from '$lib/components/widgets/CodeWidget.svelte';
   import TerminalWidget from '$lib/components/widgets/TerminalWidget.svelte';
   import BrowserWidget from '$lib/components/widgets/BrowserWidget.svelte';
+
+  let storeReady = $state(false);
+
+  // Persiste le dernier workspace actif
+  $effect(() => {
+    if (store.activeWorkspaceId) {
+      try { localStorage.setItem('last-workspace-id', store.activeWorkspaceId); } catch {}
+    }
+  });
+
+  // Rouvre le dernier workspace au démarrage si le setting est activé
+  let hasRestored = false;
+  $effect(() => {
+    if (!storeReady || !settings.ready || hasRestored) return;
+    hasRestored = true;
+    if (settings.general.reopenLastWorkspace) {
+      const lastId = localStorage.getItem('last-workspace-id');
+      if (lastId && store.workspaces.find(w => w.id === lastId)) {
+        store.setActiveWorkspace(lastId);
+      }
+    }
+  });
 
   const maximizedWidget = $derived(
     store.maximizedPanelId && store.activeLayout
@@ -15,9 +38,9 @@
   );
 
   onMount(() => {
-    store.init().catch((err) => {
-      console.error('[WorkspaceStore] init failed:', err);
-    });
+    store.init()
+      .then(() => { storeReady = true; })
+      .catch((err) => { console.error('[WorkspaceStore] init failed:', err); storeReady = true; });
 
     function handleKeydown(e: KeyboardEvent) {
       if (!store.activePanelId) return;

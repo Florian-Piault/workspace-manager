@@ -206,6 +206,17 @@
     }, 1000);
   }
 
+  // Ctrl+S / Cmd+S — sauvegarde immédiate (annule le debounce en cours)
+  function saveImmediately() {
+    if (!filePath || !view) return;
+    if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; }
+    const content = view.state.doc.toString();
+    store.setSaving(nodeId, true);
+    invoke('write_file', { path: filePath, content })
+      .catch(err => console.error('[CodeWidget] write_file failed:', err))
+      .finally(() => store.setSaving(nodeId, false));
+  }
+
   onMount(async () => {
     view = new EditorView({
       state: EditorState.create({
@@ -226,6 +237,7 @@
           crosshairCursor(),
           highlightSelectionMatches(),
           keymap.of([
+            { key: 'Mod-s', run: () => { saveImmediately(); return true; } }, // Ctrl+S / Cmd+S
             indentWithTab,
             ...closeBracketsKeymap,
             ...defaultKeymap,

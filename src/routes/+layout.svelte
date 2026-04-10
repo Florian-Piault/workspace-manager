@@ -15,7 +15,8 @@
   });
 </script>
 
-<div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+<div class="flex h-screen w-screen overflow-hidden bg-background text-foreground
+            {settings.general.sidebarPosition === 'right' ? 'flex-row-reverse' : ''}">
   <Sidebar />
   <main class="relative flex-1 overflow-hidden">
     {@render children()}

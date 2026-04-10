@@ -5,6 +5,7 @@
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
   import { store } from '$lib/state.svelte';
+  import { settings, TERMINAL_COLOR_PRESETS } from '$lib/settings.svelte';
   import { nodeExists } from '$lib/layout';
   import '@xterm/xterm/css/xterm.css';
 
@@ -13,6 +14,7 @@
   let container: HTMLDivElement;
   let terminal: Terminal;
   let fitAddon: FitAddon;
+  let terminalReady = $state(false);
   let ptyId: string | null = $state(null);
   let exited = $state(false);
   let error = $state<string | null>(null);
@@ -22,6 +24,24 @@
   let resizeObserver: ResizeObserver | null = null;
   let fgPollTimer: ReturnType<typeof setInterval> | null = null;
   let mounted = true;
+
+  // Applique les settings terminal en temps réel après le montage
+  $effect(() => {
+    const fontSize = settings.terminal.fontSize;
+    const cursorBlink = settings.terminal.cursorBlink;
+    const cursorStyle = settings.terminal.cursorStyle;
+    const colorPreset = settings.terminal.colorPreset;
+    if (!terminalReady) return;
+    terminal.options.fontSize = fontSize;
+    terminal.options.cursorBlink = cursorBlink;
+    terminal.options.cursorStyle = cursorStyle;
+    terminal.options.theme = TERMINAL_COLOR_PRESETS[colorPreset];
+    fitAddon.fit();
+    terminal.refresh(0, terminal.rows - 1);
+    if (ptyId) {
+      invoke('pty_resize', { id: ptyId, cols: terminal.cols, rows: terminal.rows }).catch(() => {});
+    }
+  });
 
   async function startPty(targetId: string) {
     const cwd = store.activeWorkspace?.path ?? '/';
@@ -60,16 +80,13 @@
   }
 
   onMount(async () => {
+    const t = settings.terminal;
     terminal = new Terminal({
-      theme: {
-        background: '#0f0f0f',
-        foreground: '#d4d4d4',
-        cursor: '#d4d4d4',
-        selectionBackground: '#3a3a3a',
-      },
+      theme: TERMINAL_COLOR_PRESETS[t.colorPreset],
       fontFamily: '"Cascadia Code", "Fira Code", monospace',
-      fontSize: 13,
-      cursorBlink: true,
+      fontSize: t.fontSize,
+      cursorBlink: t.cursorBlink,
+      cursorStyle: t.cursorStyle,
       allowTransparency: false,
     });
 
@@ -100,6 +117,7 @@
       }
     });
     resizeObserver.observe(container);
+    terminalReady = true;
   });
 
   onDestroy(async () => {
