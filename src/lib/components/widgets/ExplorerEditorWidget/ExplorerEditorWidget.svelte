@@ -2,7 +2,7 @@
   import { onMount, onDestroy, untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { PaneGroup, Pane, PaneResizer } from 'paneforge';
-  import { FolderOpen } from '@lucide/svelte';
+  import { FolderOpen, PanelLeftClose, PanelLeftOpen } from '@lucide/svelte';
   // CodeMirror core
   import {
     EditorView,
@@ -54,6 +54,7 @@
   const activeFilePath = $derived(cfg.activeFilePath ?? null);
   const activeLang = $derived(detectLanguage(activeFilePath));
   const fileName = $derived(activeFilePath ? (activeFilePath.split('/').pop() ?? null) : null);
+  const treeHidden = $derived(cfg.treeHidden ?? false);
 
   // Workspace root : depuis la config du widget ou depuis le workspace actif
   const workspaceRoot = $derived(
@@ -178,7 +179,23 @@
       .finally(() => { isSaving = false; });
   }
 
+  function toggleTree() {
+    store.updateWidgetConfig(nodeId, { ...config, treeHidden: !treeHidden });
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (store.activePanelId !== nodeId) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.shiftKey && e.key === settings.keybinds.toggleFileTree) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleTree();
+    }
+  }
+
   onMount(async () => {
+    window.addEventListener('keydown', handleKeydown, { capture: true });
+
     view = new EditorView({
       state: EditorState.create({
         doc: '',
@@ -217,6 +234,7 @@
   });
 
   onDestroy(() => {
+    window.removeEventListener('keydown', handleKeydown, { capture: true });
     if (saveTimer !== null) clearTimeout(saveTimer);
     view?.destroy();
   });
@@ -225,7 +243,17 @@
 <div class="flex h-full w-full flex-col overflow-hidden">
   <!-- Header -->
   <div class="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
-    <FolderOpen class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+    <button
+      onclick={toggleTree}
+      class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+      title={treeHidden ? 'Afficher l\'arborescence' : 'Masquer l\'arborescence'}
+    >
+      {#if treeHidden}
+        <PanelLeftOpen class="h-3.5 w-3.5" />
+      {:else}
+        <PanelLeftClose class="h-3.5 w-3.5" />
+      {/if}
+    </button>
     <span class="truncate text-xs text-muted-foreground">
       {#if fileName}
         {fileName}{isDirty ? ' ●' : ''}{isSaving ? ' …' : ''}
@@ -246,7 +274,7 @@
         minSize={10}
         maxSize={50}
         onResize={(size) => store.updateWidgetConfig(nodeId, { ...config, sidebarWidth: size })}
-        class="flex flex-col overflow-hidden border-r border-border"
+        class="flex flex-col overflow-hidden border-r border-border {treeHidden ? 'hidden' : ''}"
       >
         <div class="shrink-0 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
           Fichiers
@@ -269,7 +297,9 @@
         </div>
       </Pane>
 
-      <PaneResizer class="w-1 bg-border hover:bg-primary/50 transition-colors" />
+      {#if !treeHidden}
+        <PaneResizer class="w-1 bg-border hover:bg-primary/50 transition-colors" />
+      {/if}
 
       <!-- Éditeur CodeMirror -->
       <Pane class="flex flex-col overflow-hidden">

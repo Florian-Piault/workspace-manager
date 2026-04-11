@@ -8,4 +8,5 @@ export interface ExplorerEditorConfig {
   rootPath: string | null;
   activeFilePath: string | null;
   sidebarWidth: number;
+  treeHidden?: boolean;
 }
