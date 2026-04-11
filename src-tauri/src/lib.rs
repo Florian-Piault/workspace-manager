@@ -50,6 +50,7 @@ pub fn run() {
             pty::pty_fg_process,
             fs::read_file,
             fs::write_file,
+            fs::get_directory_contents,
             browser::browser_open,
             browser::browser_navigate,
             browser::browser_resize,
