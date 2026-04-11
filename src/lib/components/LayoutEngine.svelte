@@ -2,11 +2,10 @@
   import { PaneGroup, Pane, PaneResizer } from 'paneforge';
   import { isPanel } from '$lib/types';
   import type { PanelNode, Widget } from '$lib/types';
-  import CodeWidget from './widgets/CodeWidget/CodeWidget.svelte';
+  import CodeEditorWidget from './widgets/CodeEditor/CodeEditorWidget.svelte';
   import TerminalWidget from './widgets/TerminalWidget/TerminalWidget.svelte';
   import BrowserWidget from './widgets/BrowserWidget/BrowserWidget.svelte';
   import QuickActionWidget from './widgets/QuickActionWidget/QuickActionWidget.svelte';
-  import ExplorerEditorWidget from './widgets/ExplorerEditorWidget/ExplorerEditorWidget.svelte';
   import WidgetPicker from './WidgetPicker.svelte';
   import PanelOverlay from './PanelOverlay.svelte';
   import LayoutEngine from './LayoutEngine.svelte';
@@ -38,15 +37,13 @@
     {#if node.type === 'empty'}
       <WidgetPicker nodeId={node.id} />
     {:else if node.type === 'code'}
-      <CodeWidget config={node.config} nodeId={node.id} />
+      <CodeEditorWidget config={node.config} nodeId={node.id} />
     {:else if node.type === 'terminal'}
       <TerminalWidget config={node.config} nodeId={node.id} />
     {:else if node.type === 'browser'}
       <BrowserWidget config={node.config} nodeId={node.id} />
     {:else if node.type === 'actions'}
       <QuickActionWidget config={node.config} nodeId={node.id} />
-    {:else if node.type === 'explorer'}
-      <ExplorerEditorWidget config={node.config} nodeId={node.id} />
     {/if}
   </PanelOverlay>
 {/if}

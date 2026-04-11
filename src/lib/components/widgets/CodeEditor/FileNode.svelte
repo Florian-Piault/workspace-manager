@@ -33,21 +33,11 @@
   function getFileIcon(name: string) {
     const ext = name.split('.').pop()?.toLowerCase();
     switch (ext) {
-      case 'ts':
-      case 'tsx':
-      case 'js':
-      case 'jsx':
-      case 'svelte':
-      case 'rs':
-      case 'py':
-      case 'go':
-      case 'json':
-      case 'toml':
-      case 'yaml':
-      case 'yml':
+      case 'ts': case 'tsx': case 'js': case 'jsx':
+      case 'svelte': case 'rs': case 'py': case 'go':
+      case 'json': case 'toml': case 'yaml': case 'yml':
         return FileCode;
-      case 'md':
-      case 'txt':
+      case 'md': case 'txt':
         return FileText;
       default:
         return File;

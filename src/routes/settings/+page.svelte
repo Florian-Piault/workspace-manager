@@ -12,7 +12,7 @@
     closePanel:      { label: 'Fermer le panel',   description: 'Ferme le panel actif', category: 'Interface' },
     toggleSidebar:   { label: 'Afficher/masquer la sidebar', description: 'Bascule la visibilité de la barre latérale', category: 'Interface' },
     saveFile:        { label: 'Sauvegarder le fichier', description: 'Enregistre le fichier ouvert dans l\'éditeur', category: 'Widget / Éditeur' },
-    toggleFileTree:  { label: 'Afficher/masquer l\'arborescence', description: 'Bascule la visibilité du panneau fichiers de l\'ExplorerEditor (Mod+Shift+touche)', category: 'Widget / Éditeur' },
+    toggleFileTree:  { label: 'Afficher/masquer l\'arborescence', description: 'Bascule la visibilité du panneau fichiers du CodeEditor (Mod+Shift+touche)', category: 'Widget / Éditeur' },
   };
 
   const KEYBIND_CATEGORY_IDS = {

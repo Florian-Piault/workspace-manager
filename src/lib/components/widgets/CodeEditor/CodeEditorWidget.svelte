@@ -2,7 +2,6 @@
   import { onMount, onDestroy, untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { PaneGroup, Pane, PaneResizer } from 'paneforge';
-  import { FolderOpen, PanelLeftClose, PanelLeftOpen } from '@lucide/svelte';
   // CodeMirror core
   import {
     EditorView,
@@ -23,7 +22,6 @@
     syntaxHighlighting,
     defaultHighlightStyle,
     bracketMatching,
-    foldGutter as _fg,
     foldKeymap,
     indentUnit
   } from '@codemirror/language';
@@ -45,27 +43,51 @@
   import { settings } from '$lib/settings.svelte';
   import { detectLanguage } from '$lib/utils/language-detect';
   import FileNode from './FileNode.svelte';
-  import type { FileEntry, ExplorerEditorConfig } from './types';
+  import CodeEditorHeader from './CodeEditorHeader.svelte';
+  import type { FileEntry, CodeEditorConfig } from './types';
 
   let { config, nodeId }: { config: Record<string, unknown>; nodeId: string } = $props();
 
-  // Config dérivée
-  const cfg = $derived(config as unknown as ExplorerEditorConfig);
+  const cfg = $derived(config as unknown as CodeEditorConfig);
   const activeFilePath = $derived(cfg.activeFilePath ?? null);
-  const activeLang = $derived(detectLanguage(activeFilePath));
+  const langOverride = $derived((config.language as string | null) ?? null);
+  const activeLang = $derived(langOverride ?? detectLanguage(activeFilePath));
   const fileName = $derived(activeFilePath ? (activeFilePath.split('/').pop() ?? null) : null);
   const treeHidden = $derived(cfg.treeHidden ?? false);
-
-  // Workspace root : depuis la config du widget ou depuis le workspace actif
   const workspaceRoot = $derived(
     (cfg.rootPath as string | null) ?? store.activeWorkspace?.path ?? null
   );
 
-  // Arborescence racine
+  // Per-widget overrides : widget config > global settings > fallback
+  function eff<T>(key: keyof typeof settings.editor, fallback: T): T {
+    const override = config[key];
+    return override !== undefined && override !== null
+      ? (override as T)
+      : ((settings.editor[key] as T) ?? fallback);
+  }
+
+  const effLineNumbers = $derived(eff('lineNumbers', true));
+  const effWordWrap = $derived(eff('wordWrap', false));
+  const effHighlightActiveLine = $derived(eff('highlightActiveLine', true));
+  const effFontSize = $derived(eff('fontSize', 13));
+  const effReadOnly = $derived(eff('readOnly', false));
+  const effIndentUnit = $derived(eff('indentUnit', 2));
+  const effAutocompletion = $derived(eff('autocompletion', true));
+  const effLint = $derived(eff('lint', false));
+  const effEditorTheme = $derived(eff('editorTheme', 'oneDark'));
+  const effAutoSaveDelay = $derived(eff<number>('autoSaveDelay', 1000));
+
+  const hasOverrides = $derived(
+    ['lineNumbers', 'wordWrap', 'highlightActiveLine', 'fontSize', 'readOnly',
+     'indentUnit', 'autocompletion', 'lint', 'editorTheme']
+      .some(k => config[k] !== undefined && config[k] !== null)
+  );
+
+  // File tree state
   let rootEntries = $state<FileEntry[]>([]);
   let treeError = $state<string | null>(null);
 
-  // Éditeur
+  // Editor state
   let editorContainer: HTMLDivElement;
   let view: EditorView | null = null;
   let loading = $state(false);
@@ -74,26 +96,21 @@
   let isSaving = $state(false);
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Compartments CodeMirror
+  // Compartments
   const langCompartment = new Compartment();
   const lineNumbersComp = new Compartment();
   const wordWrapComp = new Compartment();
   const highlightLineComp = new Compartment();
   const fontSizeComp = new Compartment();
-  const appKeymapComp = new Compartment();
+  const readOnlyComp = new Compartment();
+  const indentUnitComp = new Compartment();
+  const autocompletionComp = new Compartment();
+  const lintComp = new Compartment();
   const editorThemeComp = new Compartment();
+  const appKeymapComp = new Compartment();
 
-  // Settings effectifs (globaux)
-  const effLineNumbers = $derived(settings.editor.lineNumbers ?? true);
-  const effWordWrap = $derived(settings.editor.wordWrap ?? false);
-  const effHighlightActiveLine = $derived(settings.editor.highlightActiveLine ?? true);
-  const effFontSize = $derived(settings.editor.fontSize ?? 13);
-  const effEditorTheme = $derived(settings.editor.editorTheme ?? 'oneDark');
-  const effAutoSaveDelay = $derived(settings.editor.autoSaveDelay ?? 1000);
-
-  // Auto-label avec le nom du fichier actif
   $effect(() => {
-    const label = fileName ?? 'Explorer';
+    const label = fileName ?? 'Code Editor';
     untrack(() => store.setAutoLabel(nodeId, label));
   });
 
@@ -117,6 +134,10 @@
   $effect(() => { dispatch(wordWrapComp, effWordWrap ? EditorView.lineWrapping : []); });
   $effect(() => { dispatch(highlightLineComp, effHighlightActiveLine ? cmHighlightActiveLine() : []); });
   $effect(() => { dispatch(fontSizeComp, EditorView.theme({ '&': { fontSize: `${effFontSize}px` } })); });
+  $effect(() => { dispatch(readOnlyComp, EditorState.readOnly.of(effReadOnly)); });
+  $effect(() => { dispatch(indentUnitComp, indentUnit.of(' '.repeat(effIndentUnit))); });
+  $effect(() => { dispatch(autocompletionComp, effAutocompletion ? cmAutocompletion() : []); });
+  $effect(() => { dispatch(lintComp, effLint ? lintGutter() : []); });
   $effect(() => { dispatch(editorThemeComp, effEditorTheme === 'oneDark' ? oneDark : []); });
   $effect(() => {
     const saveKey = `Mod-${settings.keybinds.saveFile}`;
@@ -161,7 +182,7 @@
         await invoke('write_file', { path: activeFilePath, content });
         isDirty = false;
       } catch (err) {
-        console.error('[ExplorerEditorWidget] write_file failed:', err);
+        console.error('[CodeEditorWidget] write_file failed:', err);
       } finally {
         isSaving = false;
       }
@@ -175,8 +196,30 @@
     isSaving = true;
     invoke('write_file', { path: activeFilePath, content })
       .then(() => { isDirty = false; })
-      .catch(err => console.error('[ExplorerEditorWidget] write_file failed:', err))
+      .catch(err => console.error('[CodeEditorWidget] write_file failed:', err))
       .finally(() => { isSaving = false; });
+  }
+
+  function setLanguageOverride(lang: string) {
+    const isAutoDetected = lang === detectLanguage(activeFilePath);
+    store.updateWidgetConfig(nodeId, { ...config, language: isAutoDetected ? null : lang });
+  }
+
+  function setOverride<K extends keyof typeof settings.editor>(
+    key: K,
+    value: (typeof settings.editor)[K] | null
+  ) {
+    store.updateWidgetConfig(nodeId, { ...config, [key]: value });
+  }
+
+  function resetOverrides() {
+    const { rootPath, activeFilePath: afp, sidebarWidth, treeHidden: th } = cfg;
+    store.updateWidgetConfig(nodeId, {
+      rootPath: rootPath ?? null,
+      activeFilePath: afp ?? null,
+      sidebarWidth: sidebarWidth ?? 25,
+      treeHidden: th ?? false
+    });
   }
 
   function toggleTree() {
@@ -216,6 +259,10 @@
           wordWrapComp.of(effWordWrap ? EditorView.lineWrapping : []),
           highlightLineComp.of(effHighlightActiveLine ? cmHighlightActiveLine() : []),
           fontSizeComp.of(EditorView.theme({ '&': { fontSize: `${effFontSize}px` } })),
+          readOnlyComp.of(EditorState.readOnly.of(effReadOnly)),
+          indentUnitComp.of(indentUnit.of(' '.repeat(effIndentUnit))),
+          autocompletionComp.of(effAutocompletion ? cmAutocompletion() : []),
+          lintComp.of(effLint ? lintGutter() : []),
           editorThemeComp.of(effEditorTheme === 'oneDark' ? oneDark : []),
           EditorView.updateListener.of((update: import('@codemirror/view').ViewUpdate) => {
             if (update.docChanged && activeFilePath && !loading) {
@@ -229,7 +276,6 @@
     });
 
     await loadRootEntries();
-
     if (activeFilePath) await openFile(activeFilePath);
   });
 
@@ -241,31 +287,29 @@
 </script>
 
 <div class="flex h-full w-full flex-col overflow-hidden">
-  <!-- Header -->
-  <div class="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
-    <button
-      onclick={toggleTree}
-      class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-      title={treeHidden ? 'Afficher l\'arborescence' : 'Masquer l\'arborescence'}
-    >
-      {#if treeHidden}
-        <PanelLeftOpen class="h-3.5 w-3.5" />
-      {:else}
-        <PanelLeftClose class="h-3.5 w-3.5" />
-      {/if}
-    </button>
-    <span class="truncate text-xs text-muted-foreground">
-      {#if fileName}
-        {fileName}{isDirty ? ' ●' : ''}{isSaving ? ' …' : ''}
-      {:else if workspaceRoot}
-        {workspaceRoot.split('/').pop()}
-      {:else}
-        Explorer
-      {/if}
-    </span>
-  </div>
+  <CodeEditorHeader
+    {fileName}
+    {activeLang}
+    {loading}
+    {isDirty}
+    {isSaving}
+    {treeHidden}
+    {hasOverrides}
+    {effLineNumbers}
+    {effWordWrap}
+    {effHighlightActiveLine}
+    {effAutocompletion}
+    {effLint}
+    {effReadOnly}
+    {effFontSize}
+    {effIndentUnit}
+    {effEditorTheme}
+    onToggleTree={toggleTree}
+    onSetLanguageOverride={setLanguageOverride}
+    onSetOverride={setOverride}
+    onResetOverrides={resetOverrides}
+  />
 
-  <!-- Body : sidebar + éditeur -->
   <div class="min-h-0 flex-1 overflow-hidden">
     <PaneGroup direction="horizontal" class="h-full w-full">
       <!-- Sidebar arborescence -->

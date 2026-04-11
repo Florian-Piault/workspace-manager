@@ -5,10 +5,9 @@
   import { flatWidgets } from '$lib/layout';
   import LayoutEngine from '$lib/components/LayoutEngine.svelte';
   import PanelOverlay from '$lib/components/PanelOverlay.svelte';
-  import CodeWidget from '$lib/components/widgets/CodeWidget/CodeWidget.svelte';
+  import CodeEditorWidget from '$lib/components/widgets/CodeEditor/CodeEditorWidget.svelte';
   import TerminalWidget from '$lib/components/widgets/TerminalWidget/TerminalWidget.svelte';
   import BrowserWidget from '$lib/components/widgets/BrowserWidget/BrowserWidget.svelte';
-  import ExplorerEditorWidget from '$lib/components/widgets/ExplorerEditorWidget/ExplorerEditorWidget.svelte';
 
   let storeReady = $state(false);
 
@@ -84,13 +83,11 @@
   <div class="absolute inset-0 z-40 bg-background">
     <PanelOverlay nodeId={maximizedWidget.id} widget={maximizedWidget} isRoot={true}>
       {#if maximizedWidget.type === 'code'}
-        <CodeWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
+        <CodeEditorWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
       {:else if maximizedWidget.type === 'terminal'}
         <TerminalWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
       {:else if maximizedWidget.type === 'browser'}
         <BrowserWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
-      {:else if maximizedWidget.type === 'explorer'}
-        <ExplorerEditorWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
       {/if}
     </PanelOverlay>
   </div>
