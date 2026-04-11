@@ -23,6 +23,8 @@ export interface EditorDefaults {
   lint: boolean;
   editorTheme: 'oneDark' | 'default';
   autoSaveDelay: number;
+  showHiddenFiles: boolean;
+  excludePatterns: string[];
 }
 
 export interface TerminalSettings {
@@ -64,6 +66,8 @@ const EDITOR_DEFAULTS: EditorDefaults = {
   lint: false,
   editorTheme: 'oneDark',
   autoSaveDelay: 1000,
+  showHiddenFiles: false,
+  excludePatterns: ['node_modules', '.git', 'target', 'dist'],
 };
 
 const TERMINAL_DEFAULTS: TerminalSettings = {

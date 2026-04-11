@@ -57,6 +57,7 @@
   const workspaceRoot = $derived(
     (cfg.rootPath as string | null) ?? store.activeWorkspace?.path ?? null
   );
+  const expandedFolders = $derived(cfg.expandedFolders ?? []);
 
   // Per-widget overrides : widget config > global settings > fallback
   function eff<T>(key: keyof typeof settings.editor, fallback: T): T {
@@ -76,11 +77,16 @@
   const effLint = $derived(eff('lint', false));
   const effEditorTheme = $derived(eff('editorTheme', 'oneDark'));
   const effAutoSaveDelay = $derived(eff<number>('autoSaveDelay', 1000));
+  const effShowHiddenFiles = $derived(eff('showHiddenFiles', false));
+  const effExcludePatterns = $derived(eff<string[]>('excludePatterns', ['node_modules', '.git', 'target', 'dist']));
+
+  const EDITOR_OVERRIDE_KEYS = [
+    'lineNumbers', 'wordWrap', 'highlightActiveLine', 'fontSize', 'readOnly',
+    'indentUnit', 'autocompletion', 'lint', 'editorTheme', 'showHiddenFiles', 'excludePatterns'
+  ];
 
   const hasOverrides = $derived(
-    ['lineNumbers', 'wordWrap', 'highlightActiveLine', 'fontSize', 'readOnly',
-     'indentUnit', 'autocompletion', 'lint', 'editorTheme']
-      .some(k => config[k] !== undefined && config[k] !== null)
+    EDITOR_OVERRIDE_KEYS.some(k => config[k] !== undefined && config[k] !== null)
   );
 
   // File tree state
@@ -144,13 +150,25 @@
     dispatch(appKeymapComp, keymap.of([{ key: saveKey, run: () => { saveImmediately(); return true; } }]));
   });
 
+  // Re-load tree when filesystem settings change
+  $effect(() => {
+    // track these reactive values
+    const _hidden = effShowHiddenFiles;
+    const _patterns = effExcludePatterns;
+    if (workspaceRoot) {
+      untrack(() => loadRootEntries());
+    }
+  });
+
   async function loadRootEntries() {
     if (!workspaceRoot) return;
     treeError = null;
     try {
       rootEntries = await invoke<FileEntry[]>('get_directory_contents', {
         path: workspaceRoot,
-        workspaceRoot
+        workspaceRoot,
+        showHiddenFiles: effShowHiddenFiles,
+        excludePatterns: effExcludePatterns,
       });
     } catch (err) {
       treeError = String(err);
@@ -213,17 +231,44 @@
   }
 
   function resetOverrides() {
-    const { rootPath, activeFilePath: afp, sidebarWidth, treeHidden: th } = cfg;
+    const { rootPath, activeFilePath: afp, sidebarWidth, treeHidden: th, expandedFolders: ef } = cfg;
     store.updateWidgetConfig(nodeId, {
       rootPath: rootPath ?? null,
       activeFilePath: afp ?? null,
       sidebarWidth: sidebarWidth ?? 25,
-      treeHidden: th ?? false
+      treeHidden: th ?? false,
+      expandedFolders: ef ?? [],
     });
   }
 
   function toggleTree() {
     store.updateWidgetConfig(nodeId, { ...config, treeHidden: !treeHidden });
+  }
+
+  function handleToggleFolder(path: string, open: boolean) {
+    const current = expandedFolders;
+    const next = open
+      ? [...current, path]
+      : current.filter(p => p !== path);
+    store.updateWidgetConfig(nodeId, { ...config, expandedFolders: next });
+  }
+
+  // Purge stale expandedFolders paths that no longer exist in rootEntries
+  $effect(() => {
+    const allKnownPaths = collectAllPaths(rootEntries);
+    if (allKnownPaths.size === 0) return;
+    const valid = expandedFolders.filter(p => allKnownPaths.has(p));
+    if (valid.length !== expandedFolders.length) {
+      untrack(() => store.updateWidgetConfig(nodeId, { ...config, expandedFolders: valid }));
+    }
+  });
+
+  function collectAllPaths(entries: FileEntry[]): Set<string> {
+    const set = new Set<string>();
+    for (const e of entries) {
+      if (e.is_dir) set.add(e.path);
+    }
+    return set;
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -304,6 +349,8 @@
     {effFontSize}
     {effIndentUnit}
     {effEditorTheme}
+    {effShowHiddenFiles}
+    {effExcludePatterns}
     onToggleTree={toggleTree}
     onSetLanguageOverride={setLanguageOverride}
     onSetOverride={setOverride}
@@ -334,7 +381,11 @@
                 {entry}
                 workspaceRoot={workspaceRoot ?? ''}
                 {activeFilePath}
+                expandedPaths={expandedFolders}
+                showHiddenFiles={effShowHiddenFiles}
+                excludePatterns={effExcludePatterns}
                 onFileClick={openFile}
+                onToggleFolder={handleToggleFolder}
               />
             {/each}
           {/if}

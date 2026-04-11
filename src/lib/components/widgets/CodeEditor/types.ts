@@ -10,6 +10,7 @@ export interface CodeEditorConfig {
   sidebarWidth: number;
   treeHidden?: boolean;
   language?: string | null;
+  expandedFolders?: string[];
   // Per-widget editor overrides (null = use global setting)
   lineNumbers?: boolean | null;
   wordWrap?: boolean | null;
@@ -20,4 +21,7 @@ export interface CodeEditorConfig {
   autocompletion?: boolean | null;
   lint?: boolean | null;
   editorTheme?: string | null;
+  // Per-widget filesystem overrides (null = use global setting)
+  showHiddenFiles?: boolean | null;
+  excludePatterns?: string[] | null;
 }

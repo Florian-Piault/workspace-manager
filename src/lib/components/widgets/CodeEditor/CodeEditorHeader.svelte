@@ -24,6 +24,8 @@
     effFontSize,
     effIndentUnit,
     effEditorTheme,
+    effShowHiddenFiles,
+    effExcludePatterns,
     onToggleTree,
     onSetLanguageOverride,
     onSetOverride,
@@ -45,6 +47,8 @@
     effFontSize: number;
     effIndentUnit: number;
     effEditorTheme: string;
+    effShowHiddenFiles: boolean;
+    effExcludePatterns: string[];
     onToggleTree: () => void;
     onSetLanguageOverride: (lang: string) => void;
     onSetOverride: (key: keyof typeof settings.editor, value: never) => void;
@@ -86,6 +90,8 @@
         {effFontSize}
         {effIndentUnit}
         {effEditorTheme}
+        {effShowHiddenFiles}
+        {effExcludePatterns}
         {hasOverrides}
         {onSetOverride}
         {onResetOverrides}

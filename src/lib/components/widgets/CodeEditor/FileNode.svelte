@@ -16,17 +16,25 @@
     entry,
     workspaceRoot,
     activeFilePath,
+    expandedPaths,
+    showHiddenFiles,
+    excludePatterns,
     depth = 0,
-    onFileClick
+    onFileClick,
+    onToggleFolder,
   }: {
     entry: FileEntry;
     workspaceRoot: string;
     activeFilePath: string | null;
+    expandedPaths: string[];
+    showHiddenFiles: boolean;
+    excludePatterns: string[];
     depth?: number;
     onFileClick: (path: string) => void;
+    onToggleFolder: (path: string, open: boolean) => void;
   } = $props();
 
-  let isOpen = $state(false);
+  const isOpen = $derived(expandedPaths.includes(entry.path));
   let children = $state<FileEntry[]>([]);
   let loading = $state(false);
 
@@ -44,26 +52,39 @@
     }
   }
 
+  async function loadChildren() {
+    loading = true;
+    try {
+      children = await invoke<FileEntry[]>('get_directory_contents', {
+        path: entry.path,
+        workspaceRoot,
+        showHiddenFiles,
+        excludePatterns,
+      });
+    } catch (err) {
+      console.error('[FileNode] get_directory_contents failed:', err);
+    } finally {
+      loading = false;
+    }
+  }
+
   async function handleClick() {
     if (entry.is_dir) {
       if (!isOpen && children.length === 0) {
-        loading = true;
-        try {
-          children = await invoke<FileEntry[]>('get_directory_contents', {
-            path: entry.path,
-            workspaceRoot
-          });
-        } catch (err) {
-          console.error('[FileNode] get_directory_contents failed:', err);
-        } finally {
-          loading = false;
-        }
+        await loadChildren();
       }
-      isOpen = !isOpen;
+      onToggleFolder(entry.path, !isOpen);
     } else {
       onFileClick(entry.path);
     }
   }
+
+  // Re-load children when folder becomes open and children are stale
+  $effect(() => {
+    if (isOpen && children.length === 0) {
+      loadChildren();
+    }
+  });
 
   const isActive = $derived(!entry.is_dir && entry.path === activeFilePath);
   const FileIcon = $derived(getFileIcon(entry.name));
@@ -112,8 +133,12 @@
         entry={child}
         {workspaceRoot}
         {activeFilePath}
+        {expandedPaths}
+        {showHiddenFiles}
+        {excludePatterns}
         depth={depth + 1}
         {onFileClick}
+        {onToggleFolder}
       />
     {/each}
   {/if}

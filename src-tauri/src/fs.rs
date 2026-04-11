@@ -1,6 +1,7 @@
 use tauri::command;
 use std::fs;
 use std::path::Path;
+use glob::Pattern;
 
 #[command]
 pub fn read_file(path: String) -> Result<String, String> {
@@ -19,12 +20,20 @@ pub struct FileEntry {
     is_dir: bool,
 }
 
+fn is_excluded(name: &str, patterns: &[Pattern]) -> bool {
+    patterns.iter().any(|p| p.matches(name))
+}
+
 #[command]
-pub fn get_directory_contents(path: String, workspace_root: String) -> Result<Vec<FileEntry>, String> {
+pub fn get_directory_contents(
+    path: String,
+    workspace_root: String,
+    show_hidden_files: bool,
+    exclude_patterns: Vec<String>,
+) -> Result<Vec<FileEntry>, String> {
     let req_path = Path::new(&path);
     let root_path = Path::new(&workspace_root);
 
-    // Sécurité : s'assurer que le chemin demandé est dans le workspace
     let canonical_path = req_path.canonicalize().map_err(|e| e.to_string())?;
     let canonical_root = root_path.canonicalize().map_err(|e| e.to_string())?;
 
@@ -32,7 +41,10 @@ pub fn get_directory_contents(path: String, workspace_root: String) -> Result<Ve
         return Err("Path is outside workspace".to_string());
     }
 
-    let ignored = ["node_modules", ".git", "target", ".trellis"];
+    let compiled: Vec<Pattern> = exclude_patterns
+        .iter()
+        .filter_map(|p| Pattern::new(p).ok())
+        .collect();
 
     let read_dir = fs::read_dir(&canonical_path).map_err(|e| e.to_string())?;
 
@@ -41,7 +53,10 @@ pub fn get_directory_contents(path: String, workspace_root: String) -> Result<Ve
         .filter(|e| {
             let name = e.file_name();
             let name_str = name.to_string_lossy();
-            !ignored.contains(&name_str.as_ref())
+            if !show_hidden_files && name_str.starts_with('.') {
+                return false;
+            }
+            !is_excluded(&name_str, &compiled)
         })
         .map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
@@ -51,7 +66,6 @@ pub fn get_directory_contents(path: String, workspace_root: String) -> Result<Ve
         })
         .collect();
 
-    // Tri : dossiers en premier, puis fichiers, ordre alphabétique
     entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
@@ -80,5 +94,16 @@ mod tests {
     fn test_read_missing_file_returns_err() {
         let result = read_file("/tmp/ws_nonexistent_xyz_123.txt".to_string());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_is_excluded_glob() {
+        let patterns: Vec<Pattern> = vec![
+            Pattern::new("node_modules").unwrap(),
+            Pattern::new("*.lock").unwrap(),
+        ];
+        assert!(is_excluded("node_modules", &patterns));
+        assert!(is_excluded("pnpm.lock", &patterns));
+        assert!(!is_excluded("src", &patterns));
     }
 }

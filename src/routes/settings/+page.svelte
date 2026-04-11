@@ -3,6 +3,7 @@
   import { theme } from '$lib/theme.svelte';
   import { settings, TERMINAL_COLOR_PRESETS, KEYBIND_DEFAULTS, BLOCKED_KEYS, type KeybindSettings } from '$lib/settings.svelte';
   import { Sun, Moon, RotateCcw, AlertTriangle, Keyboard } from '@lucide/svelte';
+  import EditorSettingsFields from '$lib/components/widgets/CodeEditor/EditorSettingsFields.svelte';
 
   type KeybindKey = keyof KeybindSettings;
 
@@ -68,17 +69,6 @@
     capturing = null;
     captureError = null;
   }
-
-  const INDENT_OPTIONS = [
-    { value: 2, label: '2 espaces' },
-    { value: 4, label: '4 espaces' },
-    { value: 8, label: '8 espaces' },
-  ] as const;
-
-  const EDITOR_THEME_OPTIONS = [
-    { value: 'oneDark', label: 'One Dark' },
-    { value: 'default', label: 'Défaut (clair)' },
-  ] as const;
 
   const TERMINAL_PRESET_OPTIONS = [
     { value: 'dark', label: 'Dark (défaut)' },
@@ -365,108 +355,16 @@
         </h2>
         <div class="divide-y divide-border rounded-lg border border-border bg-card">
 
-          <div class="flex items-center justify-between px-4 py-3">
-            <div>
-              <p class="text-sm font-medium">Numéros de ligne</p>
-              <p class="text-xs text-muted-foreground">Affiche les numéros à gauche de l'éditeur</p>
-            </div>
-            {@render toggle(settings.editor.lineNumbers, 'Numéros de ligne', (v) => settings.setEditor({ lineNumbers: v }))}
-          </div>
+          <EditorSettingsFields
+            values={settings.editor}
+            onchange={(key, value) => settings.setEditor({ [key]: value } as never)}
+          />
 
-          <div class="flex items-center justify-between px-4 py-3">
-            <div>
-              <p class="text-sm font-medium">Retour à la ligne automatique</p>
-              <p class="text-xs text-muted-foreground">Wrap le texte long sans défilement horizontal</p>
-            </div>
-            {@render toggle(settings.editor.wordWrap, 'Retour à la ligne', (v) => settings.setEditor({ wordWrap: v }))}
-          </div>
-
-          <div class="flex items-center justify-between px-4 py-3">
-            <div>
-              <p class="text-sm font-medium">Surligner la ligne active</p>
-              <p class="text-xs text-muted-foreground">Met en évidence la ligne où se trouve le curseur</p>
-            </div>
-            {@render toggle(settings.editor.highlightActiveLine, 'Surligner la ligne active', (v) => settings.setEditor({ highlightActiveLine: v }))}
-          </div>
-
-          <div class="flex items-center justify-between px-4 py-3">
-            <div>
-              <p class="text-sm font-medium">Auto-complétion</p>
-              <p class="text-xs text-muted-foreground">Suggestions de complétion pendant la saisie</p>
-            </div>
-            {@render toggle(settings.editor.autocompletion, 'Auto-complétion', (v) => settings.setEditor({ autocompletion: v }))}
-          </div>
-
-          <div class="flex items-center justify-between px-4 py-3">
-            <div>
-              <p class="text-sm font-medium">Lint</p>
-              <p class="text-xs text-muted-foreground">Indique les erreurs et avertissements dans la gouttière</p>
-            </div>
-            {@render toggle(settings.editor.lint, 'Lint', (v) => settings.setEditor({ lint: v }))}
-          </div>
-
-          <div class="flex items-center justify-between px-4 py-3">
-            <div>
-              <p class="text-sm font-medium">Lecture seule</p>
-              <p class="text-xs text-muted-foreground">Désactive l'édition dans tous les éditeurs</p>
-            </div>
-            {@render toggle(settings.editor.readOnly, 'Lecture seule', (v) => settings.setEditor({ readOnly: v }))}
-          </div>
-
-          <div class="flex items-center justify-between px-4 py-3">
-            <div>
-              <p class="text-sm font-medium">Taille de police</p>
-              <p class="text-xs text-muted-foreground">En pixels (10–24)</p>
-            </div>
-            <input
-              type="number"
-              min="10"
-              max="24"
-              value={settings.editor.fontSize}
-              oninput={(e) => {
-                const v = parseInt((e.target as HTMLInputElement).value);
-                if (v >= 10 && v <= 24) settings.setEditor({ fontSize: v });
-              }}
-              class="w-16 rounded-md border border-border bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          <div class="flex items-center justify-between px-4 py-3">
-            <div>
-              <p class="text-sm font-medium">Indentation</p>
-              <p class="text-xs text-muted-foreground">Nombre d'espaces par niveau</p>
-            </div>
-            <select
-              value={settings.editor.indentUnit}
-              onchange={(e) => settings.setEditor({ indentUnit: parseInt((e.target as HTMLSelectElement).value) as 2 | 4 | 8 })}
-              class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {#each INDENT_OPTIONS as opt}
-                <option value={opt.value}>{opt.label}</option>
-              {/each}
-            </select>
-          </div>
-
-          <div class="flex items-center justify-between px-4 py-3">
-            <div>
-              <p class="text-sm font-medium">Thème de l'éditeur</p>
-              <p class="text-xs text-muted-foreground">Coloration syntaxique</p>
-            </div>
-            <select
-              value={settings.editor.editorTheme}
-              onchange={(e) => settings.setEditor({ editorTheme: (e.target as HTMLSelectElement).value as 'oneDark' | 'default' })}
-              class="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {#each EDITOR_THEME_OPTIONS as opt}
-                <option value={opt.value}>{opt.label}</option>
-              {/each}
-            </select>
-          </div>
-
+          <!-- Délai de sauvegarde automatique (non partagé avec le popup per-widget) -->
           <div class="flex items-center justify-between px-4 py-3">
             <div>
               <p class="text-sm font-medium">Délai de sauvegarde automatique</p>
-              <p class="text-xs text-muted-foreground">0 = désactivée, sinon délai en millisecondes après la dernière frappe</p>
+              <p class="text-xs text-muted-foreground">0 = désactivée, sinon délai en ms après la dernière frappe</p>
             </div>
             <select
               value={settings.editor.autoSaveDelay}
