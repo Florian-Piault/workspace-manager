@@ -99,3 +99,49 @@ Remplissage des 6 fichiers de guidelines frontend à partir de l'analyse du code
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Widget Explorer Editor - Arborescence + CodeMirror
+
+**Date**: 2026-04-11
+**Task**: Widget Explorer Editor - Arborescence + CodeMirror
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Composant | Description |
+|-----------|-------------|
+| `get_directory_contents` (Rust) | Nouvelle commande Tauri listant fichiers/dossiers avec validation sécurité (path dans workspace), filtrage `node_modules`/`.git`/`target`, tri dossiers-puis-fichiers |
+| `FileNode.svelte` | Composant Svelte 5 récursif (self-import) avec lazy loading : charge les enfants au premier clic uniquement via `$state` isOpen/children |
+| `ExplorerEditorWidget.svelte` | Widget principal : sidebar paneforge redimensionnable + éditeur CodeMirror 6 complet (même pattern que CodeWidget), sauvegarde auto + Ctrl+S, persistance config (activeFilePath, sidebarWidth) |
+| Types & branchements | `'explorer'` ajouté à `WidgetType`, routing dans `LayoutEngine.svelte`, entrée dans `WidgetPicker.svelte` avec icône `FolderTree` |
+
+**Fichiers modifiés** :
+- `src-tauri/src/fs.rs` — commande `get_directory_contents`
+- `src-tauri/src/lib.rs` — enregistrement commande
+- `src/lib/types.ts` — `WidgetType` étendu
+- `src/lib/components/LayoutEngine.svelte` — routing `explorer`
+- `src/lib/components/WidgetPicker.svelte` — entrée picker
+- `src/lib/components/widgets/ExplorerEditorWidget/` (nouveau) — 3 fichiers
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f82e39c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
