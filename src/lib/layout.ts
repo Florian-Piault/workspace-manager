@@ -86,6 +86,10 @@ export function updateNodeConfig(
   });
 }
 
+export function getWidgetDisplayName(widget: Widget, autoLabels: Map<string, string>): string {
+  return widget.label ?? autoLabels.get(widget.id) ?? widget.type;
+}
+
 export function flatWidgets(root: Panel): Widget[] {
   const result: Widget[] = [];
   for (const child of root.children) {

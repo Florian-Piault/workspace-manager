@@ -10,14 +10,14 @@
     Zap
   } from '@lucide/svelte';
   import { goto } from '$app/navigation';
-  import { page } from '$app/stores';
   import { store } from '$lib/state.svelte';
   import { settings } from '$lib/settings.svelte';
-  import { flatWidgets } from '$lib/layout';
+  import { flatWidgets, getWidgetDisplayName } from '$lib/layout';
   import type { Workspace } from '$lib/types';
+  import { page } from '$app/state';
 
   function goHome() {
-    if ($page.url.pathname !== '/') goto('/');
+    page.url.pathname !== '/' ? goto('/') : null;
   }
 
   let { workspace }: { workspace: Workspace } = $props();
@@ -194,7 +194,7 @@
                 ? 'text-foreground'
                 : 'text-muted-foreground'}"
             >
-              {widget.label ?? store.autoLabels.get(widget.id) ?? widget.type}
+              {getWidgetDisplayName(widget, store.autoLabels)}
             </span>
           </button>
           <button

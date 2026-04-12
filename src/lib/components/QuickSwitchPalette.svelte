@@ -4,7 +4,7 @@
   import { page } from '$app/state';
   import { store } from '$lib/state.svelte';
   import { settings } from '$lib/settings.svelte';
-  import { flatWidgets } from '$lib/layout';
+  import { flatWidgets, getWidgetDisplayName } from '$lib/layout';
   import type { Widget } from '$lib/types';
   import { Search, Terminal, TextAlignStart, Globe, Zap, FolderOpen } from '@lucide/svelte';
 
@@ -23,10 +23,6 @@
     listEl.querySelector<HTMLElement>(`[data-idx="${selectedIndex}"]`)?.scrollIntoView({ block: 'nearest' });
   });
 
-  function getWidgetLabel(widget: Widget) {
-    return widget.label ?? store.autoLabels.get(widget.id) ?? widget.type;
-  }
-
   const filteredWorkspaces = $derived(
     store.workspaces.filter(ws =>
       ws.name.toLowerCase().includes(query.toLowerCase())
@@ -43,7 +39,7 @@
 
   const filteredWidgets = $derived(
     allWidgets
-      .filter(w => getWidgetLabel(w).toLowerCase().includes(query.toLowerCase()))
+      .filter(w => getWidgetDisplayName(w, store.autoLabels).toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => {
         const aActive = a.workspaceId === store.activeWorkspaceId ? 0 : 1;
         const bActive = b.workspaceId === store.activeWorkspaceId ? 0 : 1;
@@ -171,7 +167,7 @@
               {:else if widget.type === 'actions'}
                 <Zap class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               {/if}
-              <span class="flex-1 truncate">{getWidgetLabel(widget)}</span>
+              <span class="flex-1 truncate">{getWidgetDisplayName(widget, store.autoLabels)}</span>
               <span class="shrink-0 text-xs text-muted-foreground/60">{widget.workspaceName}</span>
               {#if store.activePanelId === widget.id}
                 <span class="text-xs text-muted-foreground">actif</span>
