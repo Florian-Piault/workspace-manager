@@ -15,6 +15,7 @@
   import DockerIcon from '$lib/components/ui/icon/DockerIcon.svelte';
   import RustIcon from '$lib/components/ui/icon/RustIcon.svelte';
   import BashIcon from '$lib/components/ui/icon/BashIcon.svelte';
+  import type { Snippet } from 'svelte';
   import { store } from '$lib/state.svelte';
   import { qaStore, type DetectedAction } from '$lib/quick_actions.svelte';
   import QuickActionItem from './QuickActionItem.svelte';
@@ -31,7 +32,7 @@
     shell: BashIcon
   };
 
-  let { nodeId }: { config: Record<string, unknown>; nodeId: string } =
+  let { nodeId, pillControls }: { config: Record<string, unknown>; nodeId: string; pillControls?: Snippet } =
     $props();
 
   let showForm = $state(false);
@@ -136,9 +137,9 @@
 <div class="flex h-full w-full flex-col overflow-hidden">
   <!-- Header -->
   <div
-    class="flex h-8 shrink-0 items-center justify-between border-b border-border bg-muted/40 px-3"
+    class="flex h-8 shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3"
   >
-    <span class="text-xs font-semibold text-foreground">Quick Actions</span>
+    <span class="flex-1 text-xs font-semibold text-foreground">Quick Actions</span>
     <button
       onclick={() => {
         showForm = !showForm;
@@ -149,6 +150,12 @@
     >
       <Plus class="h-3.5 w-3.5" />
     </button>
+
+    {#if pillControls}
+      <div class="shrink-0 border-l border-border pl-2">
+        {@render pillControls()}
+      </div>
+    {/if}
   </div>
 
   <!-- Liste des actions -->

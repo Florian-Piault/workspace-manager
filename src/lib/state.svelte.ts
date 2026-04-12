@@ -9,6 +9,8 @@ import {
   updatePanelSizes as updatePanelSizesHelper,
   moveWidgetNode as moveWidgetNodeHelper,
   makeInitialRoot,
+  nodeExists,
+  findPanelById,
   type DropSide,
 } from './layout';
 
@@ -215,6 +217,8 @@ export class WorkspaceStore {
   updateWidgetConfig(nodeId: string, config: Record<string, unknown>): void {
     const layout = this.activeLayout;
     if (!layout) return;
+    // Nœud supprimé (ex: onDestroy async du terminal après closePanel) → skip
+    if (!nodeExists(layout.root, nodeId)) return;
     const newRoot = updateNodeConfigHelper(layout.root, nodeId, config);
     this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
     this._debouncedSave();
@@ -223,7 +227,14 @@ export class WorkspaceStore {
   updatePanelSizes(nodeId: string, sizes: number[]): void {
     const layout = this.activeLayout;
     if (!layout) return;
+    // Nœud absent (panel collapsé après removeNode) → skip
+    const current = findPanelById(layout.root, nodeId);
+    if (!current) return;
+    // Epsilon guard : bruit flottant de paneforge
+    if (current.sizes.length === sizes.length && current.sizes.every((s, i) => Math.abs(s - sizes[i]) < 0.01)) return;
     const newRoot = updatePanelSizesHelper(layout.root, nodeId, sizes);
+    // Partage structurel : si rien n'a changé dans l'arbre, ne pas re-déclencher Svelte
+    if (newRoot === layout.root) return;
     this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
     this._debouncedSave();
   }

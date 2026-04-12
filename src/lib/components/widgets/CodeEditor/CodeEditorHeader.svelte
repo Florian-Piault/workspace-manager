@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Settings, PanelLeftClose, PanelLeftOpen } from '@lucide/svelte';
+  import type { Snippet } from 'svelte';
   import * as Select from '$lib/components/ui/select';
   import * as Popover from '$lib/components/ui/popover';
   import { settings } from '$lib/settings.svelte';
@@ -26,6 +27,7 @@
     effEditorTheme,
     effShowHiddenFiles,
     effExcludePatterns,
+    pillControls,
     onToggleTree,
     onSetLanguageOverride,
     onSetOverride,
@@ -49,6 +51,7 @@
     effEditorTheme: string;
     effShowHiddenFiles: boolean;
     effExcludePatterns: string[];
+    pillControls?: Snippet;
     onToggleTree: () => void;
     onSetLanguageOverride: (lang: string) => void;
     onSetOverride: (key: keyof typeof settings.editor, value: never) => void;
@@ -108,7 +111,7 @@
     </Select.Content>
   </Select.Root>
 
-  <span class="flex-1 truncate text-xs text-muted-foreground">
+  <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground">
     {#if fileName}
       {fileName}{isDirty ? ' ●' : ''}{isSaving ? ' …' : ''}
     {:else if loading}
@@ -117,4 +120,10 @@
       Aucun fichier
     {/if}
   </span>
+
+  {#if pillControls}
+    <div class="ml-1 shrink-0 border-l border-border pl-1">
+      {@render pillControls()}
+    </div>
+  {/if}
 </div>

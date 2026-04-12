@@ -115,15 +115,11 @@
   });
 </script>
 
-<div
-  class="absolute right-1 top-1 z-10 flex items-center gap-0.5
-         rounded-md bg-black/60 px-1.5 py-0.5 backdrop-blur-sm
-         opacity-20 transition-opacity group-hover:opacity-100 border border-white/10"
->
+<div class="flex shrink-0 items-center gap-0.5">
   <!-- Drag handle -->
   <button
     onpointerdown={handleHandlePointerDown}
-    class="rounded p-0.5 text-white/50 hover:text-white/90 cursor-grab active:cursor-grabbing select-none"
+    class="rounded p-0.5 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing select-none"
     title="Déplacer le widget"
     tabindex="-1"
     aria-label="Déplacer le widget"
@@ -131,14 +127,14 @@
     <GripVertical class="h-3 w-3" aria-hidden="true" />
   </button>
 
-  <div class="mx-0.5 h-3 w-px bg-white/20"></div>
+  <div class="mx-0.5 h-3 w-px bg-border"></div>
 
   {#if widget.type === 'terminal'}
-    <Terminal class="h-3 w-3 text-white/60 shrink-0" />
+    <Terminal class="h-3 w-3 shrink-0 text-muted-foreground/60" />
   {:else if widget.type === 'code'}
-    <TextAlignStart class="h-3 w-3 text-white/60 shrink-0" />
+    <TextAlignStart class="h-3 w-3 shrink-0 text-muted-foreground/60" />
   {:else if widget.type === 'browser'}
-    <Globe class="h-3 w-3 text-white/60 shrink-0" />
+    <Globe class="h-3 w-3 shrink-0 text-muted-foreground/60" />
   {/if}
 
   {#if widget.type !== 'empty'}
@@ -150,14 +146,14 @@
     {/if}
     {#if editing}
       <input
-        class="w-20 bg-transparent text-xs text-white/90 outline-none"
+        class="w-20 bg-transparent text-xs text-foreground outline-none"
         bind:value={draft}
         onblur={confirmEdit}
         onkeydown={handleKeydown}
       />
     {:else}
       <button
-        class="max-w-35 truncate text-xs text-white/70 hover:text-white"
+        class="max-w-35 truncate text-xs text-muted-foreground hover:text-foreground"
         onclick={startEdit}
         title="Double-cliquer pour renommer"
         ondblclick={startEdit}
@@ -168,7 +164,7 @@
   {/if}
 
   <button
-    class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
+    class="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     onclick={e => {
       e.stopPropagation();
       store.toggleMaximize(nodeId);
@@ -183,7 +179,7 @@
   </button>
 
   <button
-    class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
+    class="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     onclick={e => {
       e.stopPropagation();
       store.splitPanel(nodeId, 'horizontal');
@@ -193,7 +189,7 @@
     <Columns2 class="h-3 w-3" />
   </button>
   <button
-    class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
+    class="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     onclick={e => {
       e.stopPropagation();
       store.splitPanel(nodeId, 'vertical');
@@ -203,8 +199,7 @@
     <Rows2 class="h-3 w-3" />
   </button>
   <button
-    class="rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white
-           disabled:pointer-events-none disabled:opacity-30"
+    class="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     onclick={e => {
       e.stopPropagation();
       store.closePanel(nodeId);

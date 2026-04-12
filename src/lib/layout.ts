@@ -103,13 +103,20 @@ export function flatWidgets(root: Panel): Widget[] {
 }
 
 export function updatePanelSizes(root: Panel, targetId: string, sizes: number[]): Panel {
-  if (root.id === targetId) return { ...root, sizes };
-  return {
-    ...root,
-    children: root.children.map((child) =>
-      isPanel(child) ? updatePanelSizes(child, targetId, sizes) : child
-    ),
-  };
+  if (root.id === targetId) {
+    // Retourner la même référence si rien n'a changé → empêche les re-renders inutiles
+    if (root.sizes.length === sizes.length && root.sizes.every((s, i) => s === sizes[i])) return root;
+    return { ...root, sizes };
+  }
+  let changed = false;
+  const newChildren = root.children.map((child) => {
+    if (!isPanel(child)) return child;
+    const updated = updatePanelSizes(child, targetId, sizes);
+    if (updated !== child) changed = true;
+    return updated;
+  });
+  // Partage structurel : pas de nouvel objet si aucun enfant n'a changé
+  return changed ? { ...root, children: newChildren } : root;
 }
 
 export function updateWidgetLabel(root: Panel, targetId: string, label: string): Panel {
@@ -139,6 +146,17 @@ export function swapWidgetContents(root: Panel, idA: string, idB: string): Panel
   let result = mapNode(root, idA, () => ({ id: idA, type: b.type, config: b.config, label: b.label }));
   result = mapNode(result, idB, () => ({ id: idB, type: a.type, config: a.config, label: a.label }));
   return result;
+}
+
+export function findPanelById(root: Panel, targetId: string): Panel | null {
+  if (root.id === targetId) return root;
+  for (const child of root.children) {
+    if (isPanel(child)) {
+      const found = findPanelById(child, targetId);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
 export function moveWidgetNode(root: Panel, sourceId: string, targetId: string, side: DropSide): Panel {

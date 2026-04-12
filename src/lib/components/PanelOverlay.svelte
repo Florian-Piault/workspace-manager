@@ -13,7 +13,7 @@
     nodeId: string;
     isRoot?: boolean;
     widget: Widget;
-    children: Snippet;
+    children: Snippet<[Snippet]>;
   } = $props();
 
   const isActive = $derived(store.activePanelId === nodeId);
@@ -44,15 +44,18 @@
 
 </script>
 
+{#snippet pillControls()}
+  <WidgetPill {nodeId} {widget} {isRoot} />
+{/snippet}
+
 <div
-  class="group relative h-full w-full {isActive ? 'ring-1 ring-primary ring-inset' : ''}"
+  class="relative h-full w-full {isActive ? 'ring-1 ring-primary ring-inset' : ''}"
   onclick={() => store.setActivePanel(nodeId)}
   onkeydown={handleContainerKeydown}
   role="button"
   tabindex="0"
 >
-  {@render children()}
-  <WidgetPill {nodeId} {widget} {isRoot} />
+  {@render children(pillControls)}
 
   <!-- Drop zones — visible only during native drag (body.dnd-active) -->
   <!-- Outer ring -->

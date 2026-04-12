@@ -82,13 +82,15 @@
 {#if maximizedWidget}
   <div class="absolute inset-0 z-40 bg-background">
     <PanelOverlay nodeId={maximizedWidget.id} widget={maximizedWidget} isRoot={true}>
-      {#if maximizedWidget.type === 'code'}
-        <CodeEditorWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
-      {:else if maximizedWidget.type === 'terminal'}
-        <TerminalWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
-      {:else if maximizedWidget.type === 'browser'}
-        <BrowserWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} />
-      {/if}
+      {#snippet children(pillControls)}
+        {#if maximizedWidget.type === 'code'}
+          <CodeEditorWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} {pillControls} />
+        {:else if maximizedWidget.type === 'terminal'}
+          <TerminalWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} {pillControls} />
+        {:else if maximizedWidget.type === 'browser'}
+          <BrowserWidget config={maximizedWidget.config} nodeId={maximizedWidget.id} {pillControls} />
+        {/if}
+      {/snippet}
     </PanelOverlay>
   </div>
 {/if}

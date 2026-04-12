@@ -4,12 +4,13 @@
   import { listen } from '@tauri-apps/api/event';
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
+  import type { Snippet } from 'svelte';
   import { store } from '$lib/state.svelte';
   import { settings, TERMINAL_COLOR_PRESETS } from '$lib/settings.svelte';
   import { nodeExists } from '$lib/layout';
   import '@xterm/xterm/css/xterm.css';
 
-  let { config, nodeId }: { config: Record<string, unknown>; nodeId: string } = $props();
+  let { config, nodeId, pillControls }: { config: Record<string, unknown>; nodeId: string; pillControls?: Snippet } = $props();
 
   let container: HTMLDivElement;
   let terminal: Terminal;
@@ -159,7 +160,14 @@
   }
 </script>
 
-<div class="relative h-full w-full overflow-hidden bg-[#0f0f0f]">
+<div class="flex h-full w-full flex-col overflow-hidden">
+  {#if pillControls}
+    <div class="flex h-8 shrink-0 items-center justify-end border-b border-border bg-muted/40 px-2">
+      {@render pillControls()}
+    </div>
+  {/if}
+
+  <div class="relative min-h-0 flex-1 overflow-hidden bg-[#0f0f0f]">
   <div bind:this={container} class="h-full w-full p-1"></div>
 
   {#if error}
@@ -188,4 +196,5 @@
       </div>
     </div>
   {/if}
+  </div>
 </div>

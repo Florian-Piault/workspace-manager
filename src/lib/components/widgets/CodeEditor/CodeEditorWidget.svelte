@@ -42,11 +42,12 @@
   import { store } from '$lib/state.svelte';
   import { settings } from '$lib/settings.svelte';
   import { detectLanguage } from '$lib/utils/language-detect';
+  import type { Snippet } from 'svelte';
   import FileNode from './FileNode.svelte';
   import CodeEditorHeader from './CodeEditorHeader.svelte';
   import type { FileEntry, CodeEditorConfig } from './types';
 
-  let { config, nodeId }: { config: Record<string, unknown>; nodeId: string } = $props();
+  let { config, nodeId, pillControls }: { config: Record<string, unknown>; nodeId: string; pillControls?: Snippet } = $props();
 
   const cfg = $derived(config as unknown as CodeEditorConfig);
   const activeFilePath = $derived(cfg.activeFilePath ?? null);
@@ -351,6 +352,7 @@
     {effEditorTheme}
     {effShowHiddenFiles}
     {effExcludePatterns}
+    {pillControls}
     onToggleTree={toggleTree}
     onSetLanguageOverride={setLanguageOverride}
     onSetOverride={setOverride}
@@ -364,7 +366,12 @@
         defaultSize={cfg.sidebarWidth ?? 25}
         minSize={10}
         maxSize={50}
-        onResize={(size) => store.updateWidgetConfig(nodeId, { ...config, sidebarWidth: size })}
+        onResize={(size) => {
+          // Guard : paneforge fire onResize au remontage — skip si rien n'a changé
+          if (Math.abs(size - (cfg.sidebarWidth ?? 25)) > 0.01) {
+            store.updateWidgetConfig(nodeId, { ...config, sidebarWidth: size });
+          }
+        }}
         class="flex flex-col overflow-hidden border-r border-border {treeHidden ? 'hidden' : ''}"
       >
         <div class="shrink-0 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">

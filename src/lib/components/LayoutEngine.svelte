@@ -34,16 +34,18 @@
   {/if}
 {:else}
   <PanelOverlay nodeId={node.id} {isRoot} widget={node as Widget}>
-    {#if node.type === 'empty'}
-      <WidgetPicker nodeId={node.id} />
-    {:else if node.type === 'code'}
-      <CodeEditorWidget config={node.config} nodeId={node.id} />
-    {:else if node.type === 'terminal'}
-      <TerminalWidget config={node.config} nodeId={node.id} />
-    {:else if node.type === 'browser'}
-      <BrowserWidget config={node.config} nodeId={node.id} />
-    {:else if node.type === 'actions'}
-      <QuickActionWidget config={node.config} nodeId={node.id} />
-    {/if}
+    {#snippet children(pillControls)}
+      {#if node.type === 'empty'}
+        <WidgetPicker nodeId={node.id} />
+      {:else if node.type === 'code'}
+        <CodeEditorWidget config={node.config} nodeId={node.id} {pillControls} />
+      {:else if node.type === 'terminal'}
+        <TerminalWidget config={node.config} nodeId={node.id} {pillControls} />
+      {:else if node.type === 'browser'}
+        <BrowserWidget config={node.config} nodeId={node.id} {pillControls} />
+      {:else if node.type === 'actions'}
+        <QuickActionWidget config={node.config} nodeId={node.id} {pillControls} />
+      {/if}
+    {/snippet}
   </PanelOverlay>
 {/if}

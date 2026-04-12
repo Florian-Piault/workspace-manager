@@ -3,10 +3,11 @@
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { ArrowLeft, ArrowRight, RotateCw, Loader } from '@lucide/svelte';
+  import type { Snippet } from 'svelte';
   import { store } from '$lib/state.svelte';
   import { settings } from '$lib/settings.svelte';
 
-  let { config, nodeId }: { config: Record<string, unknown>; nodeId: string } =
+  let { config, nodeId, pillControls }: { config: Record<string, unknown>; nodeId: string; pillControls?: Snippet } =
     $props();
 
   let urlInput = $state(
@@ -173,6 +174,12 @@
         autocomplete="off"
       />
     </form>
+
+    {#if pillControls}
+      <div class="ml-1 shrink-0 border-l border-border pl-1">
+        {@render pillControls()}
+      </div>
+    {/if}
   </div>
 
   <!-- Zone réservée pour la webview native Tauri -->
