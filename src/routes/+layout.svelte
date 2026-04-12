@@ -4,6 +4,7 @@
   import { theme } from '$lib/theme.svelte';
   import { settings } from '$lib/settings.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
+  import QuickSwitchPalette from '$lib/components/QuickSwitchPalette.svelte';
 
   let { children } = $props();
 
@@ -21,4 +22,5 @@
   <main class="relative flex-1 overflow-hidden">
     {@render children()}
   </main>
+  <QuickSwitchPalette />
 </div>

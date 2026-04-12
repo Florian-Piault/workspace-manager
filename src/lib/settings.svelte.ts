@@ -7,6 +7,7 @@ export interface KeybindSettings {
   toggleSidebar: string;
   saveFile: string;
   toggleFileTree: string;
+  quickSwitch: string;
 }
 
 // Combinaisons bloquées (système/navigateur/Tauri)
@@ -94,6 +95,7 @@ export const KEYBIND_DEFAULTS: KeybindSettings = {
   toggleSidebar: 'b',
   saveFile: 's',
   toggleFileTree: 'B',
+  quickSwitch: 'p',
 };
 
 function createSettingsStore() {
