@@ -36,7 +36,7 @@
   <PanelOverlay nodeId={node.id} {isRoot} widget={node as Widget}>
     {#snippet children(pillControls)}
       {#if node.type === 'empty'}
-        <WidgetPicker nodeId={node.id} />
+        <WidgetPicker nodeId={node.id} {pillControls} />
       {:else if node.type === 'code'}
         <CodeEditorWidget config={node.config} nodeId={node.id} {pillControls} />
       {:else if node.type === 'terminal'}

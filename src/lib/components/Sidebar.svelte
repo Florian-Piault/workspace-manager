@@ -18,6 +18,7 @@
     Folder,
     Settings,
     ArrowLeft,
+    Plus
   } from '@lucide/svelte';
   import WorkspaceCreator from './WorkspaceCreator.svelte';
   import SidebarWorkspaceItem from './SidebarWorkspaceItem.svelte';
@@ -90,7 +91,10 @@
 
     // Toggle sidebar shortcut (configurable)
     function handleKeydown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === settings.keybinds.toggleSidebar) {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key === settings.keybinds.toggleSidebar
+      ) {
         e.preventDefault();
         toggle();
       }
@@ -103,7 +107,9 @@
 
 <aside
   class="flex h-full shrink-0 flex-col bg-card transition-[width] duration-200 ease-in-out overflow-hidden
-         {settings.general.sidebarPosition === 'right' ? 'border-l' : 'border-r'} border-border
+         {settings.general.sidebarPosition === 'right'
+    ? 'border-l'
+    : 'border-r'} border-border
          {collapsed ? 'w-12' : 'w-60'}"
 >
   <!-- Contrôles de fenêtre -->
@@ -141,7 +147,7 @@
         title={isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
         aria-label="Plein écran"
       >
-        <Maximize2
+        <Plus
           class="h-1.5 w-1.5 text-black/60 opacity-0 transition-opacity group-hover/wc:opacity-100"
         />
       </button>
@@ -252,10 +258,14 @@
     {/if}
     <button
       class="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors
-             {settings.general.sidebarPosition === 'right' && !collapsed ? 'order-first' : ''}"
+             {settings.general.sidebarPosition === 'right' && !collapsed
+        ? 'order-first'
+        : ''}"
       onclick={toggle}
       onmousedown={e => e.stopPropagation()}
-      title={collapsed ? 'Développer la sidebar (⌘B)' : 'Réduire la sidebar (⌘B)'}
+      title={collapsed
+        ? 'Développer la sidebar (⌘B)'
+        : 'Réduire la sidebar (⌘B)'}
     >
       {#if settings.general.sidebarPosition === 'right'}
         {#if collapsed}
@@ -263,12 +273,10 @@
         {:else}
           <PanelRightClose class="h-4 w-4" />
         {/if}
+      {:else if collapsed}
+        <PanelLeftOpen class="h-4 w-4" />
       {:else}
-        {#if collapsed}
-          <PanelLeftOpen class="h-4 w-4" />
-        {:else}
-          <PanelLeftClose class="h-4 w-4" />
-        {/if}
+        <PanelLeftClose class="h-4 w-4" />
       {/if}
     </button>
   </div>
@@ -287,7 +295,10 @@
                    {store.activeWorkspaceId === workspace.id
                     ? 'bg-accent text-foreground'
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'}"
-                  onclick={() => { store.setActiveWorkspace(workspace.id); if ($page.url.pathname !== '/') goto('/'); }}
+                  onclick={() => {
+                    store.setActiveWorkspace(workspace.id);
+                    if ($page.url.pathname !== '/') goto('/');
+                  }}
                   title={workspace.name}
                 >
                   {#if store.activeWorkspaceId === workspace.id}
@@ -296,7 +307,9 @@
                     <Folder class="h-4 w-4" />
                   {/if}
                   {#if store.activeWorkspaceId === workspace.id && store.dirtyWidgets.size > 0}
-                    <span class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                    <span
+                      class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-400"
+                    ></span>
                   {/if}
                 </button>
               </li>

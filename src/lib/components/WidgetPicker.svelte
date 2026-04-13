@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { TextAlignStart, Terminal, Globe, Zap } from '@lucide/svelte';
+  import { TextAlignStart, Terminal, Globe, Zap, X } from '@lucide/svelte';
   import { store } from '$lib/state.svelte';
   import type { WidgetType } from '$lib/types';
+  import type { Snippet } from 'svelte';
 
-  let { nodeId }: { nodeId: string } = $props();
+  let { nodeId, pillControls }: { nodeId: string; pillControls?: Snippet } = $props();
 
   const items: {
     type: Exclude<WidgetType, 'empty'>;
@@ -17,19 +18,35 @@
   ];
 </script>
 
-<div class="flex h-full w-full items-center justify-center">
-  <div
-    class="flex flex-col gap-1 rounded-lg border border-border bg-card p-2 shadow-sm"
-  >
-    {#each items as item}
+<div class="flex h-full w-full flex-col overflow-hidden">
+  <div class="flex h-8 shrink-0 items-center justify-end border-b border-border bg-muted/40 px-2">
+    {#if pillControls}
+      {@render pillControls()}
+    {:else}
       <button
-        class="flex items-center gap-3 rounded px-4 py-2 text-sm text-muted-foreground
-               transition-colors hover:bg-accent hover:text-accent-foreground"
-        onclick={() => store.assignWidget(nodeId, item.type)}
+        class="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        onclick={() => store.closePanel(nodeId)}
+        title="Fermer"
       >
-        <item.icon class="h-4 w-4 shrink-0" />
-        {item.label}
+        <X class="h-3 w-3" />
       </button>
-    {/each}
+    {/if}
+  </div>
+
+  <div class="flex flex-1 items-center justify-center">
+    <div
+      class="flex flex-col gap-1 rounded-lg border border-border bg-card p-2 shadow-sm"
+    >
+      {#each items as item}
+        <button
+          class="flex items-center gap-3 rounded px-4 py-2 text-sm text-muted-foreground
+                 transition-colors hover:bg-accent hover:text-accent-foreground"
+          onclick={() => store.assignWidget(nodeId, item.type)}
+        >
+          <item.icon class="h-4 w-4 shrink-0" />
+          {item.label}
+        </button>
+      {/each}
+    </div>
   </div>
 </div>

@@ -36,6 +36,8 @@ pub fn pty_get_scrollback(id: String, manager: State<PtyManager>) -> Result<Stri
 pub fn pty_create(
     id: String,
     cwd: String,
+    shell: Option<String>,
+    shell_args: Option<String>,
     app: AppHandle,
     manager: State<PtyManager>,
 ) -> Result<String, String> {
@@ -55,12 +57,19 @@ pub fn pty_create(
         })
         .map_err(|e| e.to_string())?;
 
-    #[cfg(target_os = "windows")]
-    let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
-    #[cfg(not(target_os = "windows"))]
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+    let resolved_shell = shell.filter(|s| !s.is_empty()).unwrap_or_else(|| {
+        #[cfg(target_os = "windows")]
+        { std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string()) }
+        #[cfg(not(target_os = "windows"))]
+        { std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string()) }
+    });
 
-    let mut cmd = CommandBuilder::new(&shell);
+    let mut cmd = CommandBuilder::new(&resolved_shell);
+    if let Some(args_str) = shell_args.filter(|s| !s.is_empty()) {
+        for arg in args_str.split_whitespace() {
+            cmd.arg(arg);
+        }
+    }
     cmd.cwd(cwd.trim_matches('\0'));
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
@@ -175,7 +184,16 @@ pub fn pty_fg_process(id: String, manager: State<PtyManager>) -> Result<String, 
 
     #[cfg(unix)]
     {
-        // Cherche les processus enfants du shell
+        fn clean_name(raw: &str) -> String {
+            let base = std::path::Path::new(raw.trim())
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| raw.trim().to_string());
+            // Les login-shells ont un `-` devant (ex: -zsh → zsh)
+            base.trim_start_matches('-').to_string()
+        }
+
+        // Cherche le processus de premier plan : dernier enfant direct du shell
         let children = std::process::Command::new("pgrep")
             .args(["-P", &shell_pid.to_string()])
             .output();
@@ -188,7 +206,7 @@ pub fn pty_fg_process(id: String, manager: State<PtyManager>) -> Result<String, 
                         .args(["-p", child_pid, "-o", "comm="])
                         .output();
                     if let Ok(o) = name_out {
-                        let name = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                        let name = clean_name(&String::from_utf8_lossy(&o.stdout));
                         if !name.is_empty() {
                             return Ok(name);
                         }
@@ -202,11 +220,85 @@ pub fn pty_fg_process(id: String, manager: State<PtyManager>) -> Result<String, 
             .args(["-p", &shell_pid.to_string(), "-o", "comm="])
             .output()
             .map_err(|e| e.to_string())?;
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+        Ok(clean_name(&String::from_utf8_lossy(&out.stdout)))
     }
 
     #[cfg(windows)]
     {
         Ok(String::new())
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct ShellInfo {
+    pub name: String,
+    pub path: String,
+}
+
+#[tauri::command]
+pub fn list_shells() -> Vec<ShellInfo> {
+    #[cfg(unix)]
+    {
+        use std::path::Path;
+
+        let mut shells: Vec<ShellInfo> = Vec::new();
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        // Lecture de /etc/shells
+        if let Ok(content) = std::fs::read_to_string("/etc/shells") {
+            for line in content.lines() {
+                let path = line.trim();
+                if path.starts_with('/') && Path::new(path).exists() && seen.insert(path.to_string()) {
+                    let name = Path::new(path)
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| path.to_string());
+                    shells.push(ShellInfo { name, path: path.to_string() });
+                }
+            }
+        }
+
+        // Chemins supplémentaires (homebrew, nix, etc.) pour fish, nu, nushell
+        let extra_paths = [
+            "/opt/homebrew/bin/fish",
+            "/usr/local/bin/fish",
+            "/opt/homebrew/bin/nu",
+            "/usr/local/bin/nu",
+            "/usr/bin/fish",
+            "/usr/bin/nu",
+        ];
+        for path in extra_paths {
+            if Path::new(path).exists() && seen.insert(path.to_string()) {
+                let name = Path::new(path)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| path.to_string());
+                shells.push(ShellInfo { name, path: path.to_string() });
+            }
+        }
+
+        shells
+    }
+
+    #[cfg(windows)]
+    {
+        use std::path::Path;
+
+        let candidates = [
+            ("cmd", r"C:\Windows\System32\cmd.exe"),
+            ("PowerShell", r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"),
+            ("PowerShell Core (pwsh)", r"C:\Program Files\PowerShell\7\pwsh.exe"),
+            ("WSL", r"C:\Windows\System32\wsl.exe"),
+            ("Git Bash", r"C:\Program Files\Git\bin\bash.exe"),
+        ];
+
+        candidates
+            .iter()
+            .filter(|(_, path)| Path::new(path).exists())
+            .map(|(name, path)| ShellInfo {
+                name: name.to_string(),
+                path: path.to_string(),
+            })
+            .collect()
     }
 }

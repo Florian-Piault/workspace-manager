@@ -25,6 +25,8 @@
   let resizeObserver: ResizeObserver | null = null;
   let fgPollTimer: ReturnType<typeof setInterval> | null = null;
   let mounted = true;
+  // true dès qu'un processus a envoyé un titre via OSC — le polling ne doit pas écraser
+  let hasOscTitle = false;
 
   // Applique les settings terminal en temps réel après le montage
   $effect(() => {
@@ -48,7 +50,9 @@
     const cwd = store.activeWorkspace?.path ?? '/';
 
     try {
-      ptyId = await invoke<string>('pty_create', { id: targetId, cwd });
+      const shell = settings.terminal.shell || undefined;
+      const shellArgs = settings.terminal.shellArgs || undefined;
+      ptyId = await invoke<string>('pty_create', { id: targetId, cwd, shell, shellArgs });
     } catch (err) {
       error = String(err);
       return;
@@ -67,12 +71,14 @@
 
     unlistenExit = await listen(`pty_exit:${ptyId}`, () => {
       exited = true;
+      hasOscTitle = false;
       if (fgPollTimer !== null) { clearInterval(fgPollTimer); fgPollTimer = null; }
     });
 
+    hasOscTitle = false;
     const currentPtyId = ptyId;
     fgPollTimer = setInterval(async () => {
-      if (!mounted || !currentPtyId) return;
+      if (!mounted || !currentPtyId || hasOscTitle) return;
       try {
         const name = await invoke<string>('pty_fg_process', { id: currentPtyId });
         store.setAutoLabel(nodeId, name);
@@ -99,6 +105,12 @@
     terminal.onData((data) => {
       if (!ptyId) return;
       invoke('pty_write', { id: ptyId, data }).catch(() => {});
+    });
+
+    // Titre OSC (séquences \e]0;title\a) — source primaire, prioritaire sur le polling
+    terminal.onTitleChange((title) => {
+      hasOscTitle = !!title;
+      store.setAutoLabel(nodeId, title);
     });
 
     await startPty(nodeId);

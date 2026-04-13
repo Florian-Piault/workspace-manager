@@ -1,9 +1,31 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { open } from '@tauri-apps/plugin-dialog';
   import { theme } from '$lib/theme.svelte';
   import { settings, TERMINAL_COLOR_PRESETS, KEYBIND_DEFAULTS, BLOCKED_KEYS, type KeybindSettings } from '$lib/settings.svelte';
   import { Sun, Moon, RotateCcw, AlertTriangle, Keyboard } from '@lucide/svelte';
   import EditorSettingsFields from '$lib/components/widgets/CodeEditor/EditorSettingsFields.svelte';
+
+  interface ShellInfo { name: string; path: string; }
+  const CUSTOM_PATH = '__custom__';
+
+  let availableShells = $state<ShellInfo[]>([]);
+  let shellSelectValue = $derived(
+    availableShells.some(s => s.path === settings.terminal.shell) || settings.terminal.shell === ''
+      ? settings.terminal.shell
+      : CUSTOM_PATH
+  );
+
+  async function onShellSelect(value: string) {
+    if (value !== CUSTOM_PATH) {
+      settings.setTerminal({ shell: value });
+      return;
+    }
+    const defaultPath = window.navigator.platform.startsWith('Win') ? 'C:\\Windows\\System32' : '/bin';
+    const selected = await open({ multiple: false, directory: false, defaultPath });
+    if (typeof selected === 'string') settings.setTerminal({ shell: selected });
+  }
 
   type KeybindKey = keyof KeybindSettings;
 
@@ -132,6 +154,8 @@
   }
 
   onMount(() => {
+    invoke<ShellInfo[]>('list_shells').then(s => { availableShells = s; });
+
     const saved = sessionStorage.getItem(SCROLL_KEY);
     if (saved) scrollEl.scrollTop = parseInt(saved);
 
@@ -322,6 +346,44 @@
                 {/each}
               </select>
             </div>
+          </div>
+
+          <!-- Shell par défaut -->
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Shell par défaut</p>
+              <p class="text-xs text-muted-foreground">Interpréteur utilisé à l'ouverture d'un terminal</p>
+            </div>
+            <select
+              value={shellSelectValue}
+              onchange={(e) => onShellSelect((e.target as HTMLSelectElement).value)}
+              class="max-w-[200px] rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Défaut système</option>
+              {#each availableShells as s}
+                <option value={s.path}>{s.name}</option>
+              {/each}
+              {#if shellSelectValue === CUSTOM_PATH}
+                <option value={CUSTOM_PATH}>{settings.terminal.shell.split('/').pop() ?? settings.terminal.shell} (personnalisé)</option>
+              {:else}
+                <option value={CUSTOM_PATH}>Chemin personnalisé…</option>
+              {/if}
+            </select>
+          </div>
+
+          <!-- Arguments du shell -->
+          <div class="flex items-center justify-between px-4 py-3">
+            <div>
+              <p class="text-sm font-medium">Arguments du shell</p>
+              <p class="text-xs text-muted-foreground">Ex : <code class="rounded bg-muted px-1">-l</code> pour un login shell</p>
+            </div>
+            <input
+              type="text"
+              placeholder="-l"
+              value={settings.terminal.shellArgs}
+              oninput={(e) => settings.setTerminal({ shellArgs: (e.target as HTMLInputElement).value })}
+              class="w-32 rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
 
         </div>

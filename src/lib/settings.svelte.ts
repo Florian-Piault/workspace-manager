@@ -33,6 +33,8 @@ export interface TerminalSettings {
   cursorBlink: boolean;
   cursorStyle: 'block' | 'bar' | 'underline';
   colorPreset: 'dark' | 'solarizedDark' | 'light';
+  shell: string;
+  shellArgs: string;
 }
 
 export interface BrowserSettings {
@@ -76,6 +78,8 @@ const TERMINAL_DEFAULTS: TerminalSettings = {
   cursorBlink: true,
   cursorStyle: 'block',
   colorPreset: 'dark',
+  shell: '',
+  shellArgs: '',
 };
 
 const BROWSER_DEFAULTS: BrowserSettings = {

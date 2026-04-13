@@ -48,6 +48,7 @@ pub fn run() {
             pty::pty_kill,
             pty::pty_get_scrollback,
             pty::pty_fg_process,
+            pty::list_shells,
             fs::read_file,
             fs::write_file,
             fs::get_directory_contents,
