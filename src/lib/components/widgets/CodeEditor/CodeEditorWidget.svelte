@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { confirm } from '@tauri-apps/plugin-dialog';
   import { PaneGroup, Pane, PaneResizer } from 'paneforge';
   // CodeMirror core
   import {
@@ -46,6 +47,8 @@
   import FileNode from './FileNode.svelte';
   import CodeEditorHeader from './CodeEditorHeader.svelte';
   import type { FileEntry, CodeEditorConfig } from './types';
+  import * as ContextMenu from '$lib/components/ui/context-menu';
+  import { File, Folder } from '@lucide/svelte';
 
   let { config, nodeId, pillControls }: { config: Record<string, unknown>; nodeId: string; pillControls?: Snippet } = $props();
 
@@ -93,6 +96,15 @@
   // File tree state
   let rootEntries = $state<FileEntry[]>([]);
   let treeError = $state<string | null>(null);
+
+  // CRUD state
+  let refreshKeys = $state<Record<string, number>>({});
+  let pendingCreate = $state<{ parentPath: string; type: 'file' | 'dir' } | null>(null);
+  let crudError = $state<string | null>(null);
+
+  function bumpDir(dirPath: string) {
+    refreshKeys = { ...refreshKeys, [dirPath]: (refreshKeys[dirPath] ?? 0) + 1 };
+  }
 
   // Editor state
   let editorContainer: HTMLDivElement;
@@ -254,22 +266,98 @@
     store.updateWidgetConfig(nodeId, { ...config, expandedFolders: next });
   }
 
-  // Purge stale expandedFolders paths that no longer exist in rootEntries
-  $effect(() => {
-    const allKnownPaths = collectAllPaths(rootEntries);
-    if (allKnownPaths.size === 0) return;
-    const valid = expandedFolders.filter(p => allKnownPaths.has(p));
-    if (valid.length !== expandedFolders.length) {
-      untrack(() => store.updateWidgetConfig(nodeId, { ...config, expandedFolders: valid }));
+  // CRUD handlers
+  function handleCreateFile(parentPath: string) {
+    if (!expandedFolders.includes(parentPath)) {
+      handleToggleFolder(parentPath, true);
     }
-  });
+    pendingCreate = { parentPath, type: 'file' };
+    crudError = null;
+  }
 
-  function collectAllPaths(entries: FileEntry[]): Set<string> {
-    const set = new Set<string>();
-    for (const e of entries) {
-      if (e.is_dir) set.add(e.path);
+  function handleCreateDirectory(parentPath: string) {
+    if (!expandedFolders.includes(parentPath)) {
+      handleToggleFolder(parentPath, true);
     }
-    return set;
+    pendingCreate = { parentPath, type: 'dir' };
+    crudError = null;
+  }
+
+  async function handleConfirmCreate(name: string) {
+    if (!pendingCreate || !name.trim() || !workspaceRoot) return;
+    const fullPath = `${pendingCreate.parentPath}/${name.trim()}`;
+    const parentPath = pendingCreate.parentPath;
+    try {
+      if (pendingCreate.type === 'file') {
+        await invoke('create_file', { path: fullPath, workspaceRoot });
+      } else {
+        await invoke('create_directory', { path: fullPath, workspaceRoot });
+      }
+      bumpDir(parentPath);
+      if (parentPath === workspaceRoot) {
+        await loadRootEntries();
+      }
+      crudError = null;
+      pendingCreate = null;
+    } catch (err) {
+      crudError = String(err);
+      // Do NOT close pendingCreate: let user correct the name
+    }
+  }
+
+  function handleCancelCreate() {
+    pendingCreate = null;
+    crudError = null;
+  }
+
+  async function handleRename(path: string, newName: string) {
+    if (!workspaceRoot) return;
+    try {
+      const newPath = await invoke<string>('rename_path', { path, newName, workspaceRoot });
+      const parentPath = path.substring(0, path.lastIndexOf('/'));
+      if (parentPath === workspaceRoot || parentPath === '') {
+        await loadRootEntries();
+      } else {
+        bumpDir(parentPath);
+      }
+      if (activeFilePath === path) {
+        store.updateWidgetConfig(nodeId, { ...config, activeFilePath: newPath });
+      }
+      crudError = null;
+    } catch (err) {
+      crudError = String(err);
+    }
+  }
+
+  async function handleDelete(path: string, isDir: boolean) {
+    if (!workspaceRoot) return;
+    if (isDir) {
+      const name = path.split('/').pop() ?? path;
+      const ok = await confirm(
+        `Supprimer définitivement "${name}" et tout son contenu ?`,
+        { title: 'Confirmer la suppression', kind: 'warning' }
+      );
+      if (!ok) return;
+    }
+    try {
+      await invoke('delete_path', { path, workspaceRoot });
+      const parentPath = path.substring(0, path.lastIndexOf('/'));
+      if (parentPath === workspaceRoot || parentPath === '') {
+        await loadRootEntries();
+      } else {
+        bumpDir(parentPath);
+      }
+      if (isDir) {
+        const next = expandedFolders.filter(p => p !== path && !p.startsWith(path + '/'));
+        store.updateWidgetConfig(nodeId, { ...config, expandedFolders: next });
+      }
+      if (!isDir && activeFilePath === path) {
+        store.updateWidgetConfig(nodeId, { ...config, activeFilePath: null });
+      }
+      crudError = null;
+    } catch (err) {
+      crudError = String(err);
+    }
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -377,26 +465,77 @@
         <div class="shrink-0 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
           Fichiers
         </div>
-        <div class="min-h-0 flex-1 overflow-y-auto py-1">
-          {#if treeError}
-            <p class="px-3 text-xs text-destructive">{treeError}</p>
-          {:else if rootEntries.length === 0}
-            <p class="px-3 text-xs text-muted-foreground/50">Aucun fichier</p>
-          {:else}
-            {#each rootEntries as entry (entry.path)}
-              <FileNode
-                {entry}
-                workspaceRoot={workspaceRoot ?? ''}
-                {activeFilePath}
-                expandedPaths={expandedFolders}
-                showHiddenFiles={effShowHiddenFiles}
-                excludePatterns={effExcludePatterns}
-                onFileClick={openFile}
-                onToggleFolder={handleToggleFolder}
-              />
-            {/each}
-          {/if}
-        </div>
+        <ContextMenu.Root>
+          <ContextMenu.Trigger class="min-h-0 flex-1 overflow-y-auto py-1 flex flex-col">
+            {#if treeError}
+              <p class="px-3 text-xs text-destructive">{treeError}</p>
+            {:else if rootEntries.length === 0 && !pendingCreate}
+              <p class="px-3 text-xs text-muted-foreground/50">Aucun fichier</p>
+            {:else}
+              {#if pendingCreate?.parentPath === workspaceRoot}
+                <div class="flex items-center gap-1.5 py-0.5 px-2">
+                  {#if pendingCreate.type === 'file'}
+                    <span class="w-3.5 shrink-0"></span>
+                    <File class="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                  {:else}
+                    <span class="w-3.5 shrink-0"></span>
+                    <Folder class="h-3.5 w-3.5 shrink-0 text-blue-400/80" />
+                  {/if}
+                  <input
+                    autofocus
+                    class="bg-transparent border-b border-primary outline-none text-sm flex-1 min-w-0"
+                    placeholder={pendingCreate.type === 'file' ? 'nouveau-fichier.ts' : 'nouveau-dossier'}
+                    onblur={(e) => { if (!(e.currentTarget as HTMLInputElement).value.trim()) handleCancelCreate(); }}
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleConfirmCreate((e.currentTarget as HTMLInputElement).value.trim()); }
+                      else if (e.key === 'Escape') { e.preventDefault(); handleCancelCreate(); }
+                    }}
+                  />
+                </div>
+              {/if}
+              {#each rootEntries as entry (entry.path)}
+                <FileNode
+                  {entry}
+                  workspaceRoot={workspaceRoot ?? ''}
+                  {activeFilePath}
+                  expandedPaths={expandedFolders}
+                  showHiddenFiles={effShowHiddenFiles}
+                  excludePatterns={effExcludePatterns}
+                  {refreshKeys}
+                  {pendingCreate}
+                  {crudError}
+                  onFileClick={openFile}
+                  onToggleFolder={handleToggleFolder}
+                  onCreateFile={handleCreateFile}
+                  onCreateDirectory={handleCreateDirectory}
+                  onRename={handleRename}
+                  onDelete={handleDelete}
+                  onConfirmCreate={handleConfirmCreate}
+                  onCancelCreate={handleCancelCreate}
+                />
+              {/each}
+            {/if}
+            {#if crudError}
+              <p class="px-3 py-1 text-xs text-destructive">{crudError}</p>
+            {/if}
+          </ContextMenu.Trigger>
+          <ContextMenu.Content>
+            <ContextMenu.Item
+              onclick={() => workspaceRoot && handleCreateFile(workspaceRoot)}
+              class="flex items-center gap-2 text-sm cursor-pointer px-2 py-1.5 rounded hover:bg-accent"
+            >
+              <File class="h-3.5 w-3.5" />
+              Nouveau fichier
+            </ContextMenu.Item>
+            <ContextMenu.Item
+              onclick={() => workspaceRoot && handleCreateDirectory(workspaceRoot)}
+              class="flex items-center gap-2 text-sm cursor-pointer px-2 py-1.5 rounded hover:bg-accent"
+            >
+              <Folder class="h-3.5 w-3.5" />
+              Nouveau dossier
+            </ContextMenu.Item>
+          </ContextMenu.Content>
+        </ContextMenu.Root>
       </Pane>
 
       {#if !treeHidden}
