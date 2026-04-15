@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from 'svelte';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { invoke } from '@tauri-apps/api/core';
   import { confirm } from '@tauri-apps/plugin-dialog';
   import { PaneGroup, Pane, PaneResizer } from 'paneforge';
@@ -46,6 +47,7 @@
   import type { Snippet } from 'svelte';
   import FileNode from './FileNode.svelte';
   import CodeEditorHeader from './CodeEditorHeader.svelte';
+  import { setFileTreeContext, type FileTreeContext, type PendingCreate } from './file-tree-context';
   import type { FileEntry, CodeEditorConfig } from './types';
   import * as ContextMenu from '$lib/components/ui/context-menu';
   import { File, Folder } from '@lucide/svelte';
@@ -97,14 +99,31 @@
   let rootEntries = $state<FileEntry[]>([]);
   let treeError = $state<string | null>(null);
 
-  // CRUD state
-  let refreshKeys = $state<Record<string, number>>({});
-  let pendingCreate = $state<{ parentPath: string; type: 'file' | 'dir' } | null>(null);
+  // CRUD state — SvelteMap/SvelteSet provide per-key reactivity, so mutations only
+  // invalidate the specific FileNode watching that path.
+  const refreshKeys = new SvelteMap<string, number>();
+  const expanded = new SvelteSet<string>();
+  let pendingCreate = $state<PendingCreate | null>(null);
   let crudError = $state<string | null>(null);
 
   function bumpDir(dirPath: string) {
-    refreshKeys = { ...refreshKeys, [dirPath]: (refreshKeys[dirPath] ?? 0) + 1 };
+    refreshKeys.set(dirPath, (refreshKeys.get(dirPath) ?? 0) + 1);
   }
+
+  /**
+   * Keep the local reactive `expanded` set in sync with the serialized config
+   * (the config is the persisted source of truth, but the SvelteSet is what
+   * children subscribe to for fine-grained reactivity). `$effect.pre` runs
+   * before DOM updates so the set is populated before children render. Using
+   * a diff avoids spuriously invalidating unrelated `has()` consumers.
+   */
+  $effect.pre(() => {
+    const desired = new Set(expandedFolders);
+    untrack(() => {
+      for (const p of expanded) if (!desired.has(p)) expanded.delete(p);
+      for (const p of desired) if (!expanded.has(p)) expanded.add(p);
+    });
+  });
 
   // Editor state
   let editorContainer: HTMLDivElement;
@@ -370,6 +389,31 @@
     }
   }
 
+  /**
+   * Provide the shared context to every descendant `FileNode`. The handler
+   * identities are stable (function declarations) and the mutable fields are
+   * exposed as getters so consumers track the underlying signals rather than
+   * the context object identity.
+   */
+  const treeContext: FileTreeContext = {
+    get workspaceRoot() { return workspaceRoot ?? ''; },
+    get showHiddenFiles() { return effShowHiddenFiles; },
+    get excludePatterns() { return effExcludePatterns; },
+    get activeFilePath() { return activeFilePath; },
+    get pendingCreate() { return pendingCreate; },
+    expanded,
+    refreshKeys,
+    onFileClick: openFile,
+    onToggleFolder: handleToggleFolder,
+    onCreateFile: handleCreateFile,
+    onCreateDirectory: handleCreateDirectory,
+    onRename: handleRename,
+    onDelete: handleDelete,
+    onConfirmCreate: handleConfirmCreate,
+    onCancelCreate: handleCancelCreate,
+  };
+  setFileTreeContext(treeContext);
+
   onMount(async () => {
     window.addEventListener('keydown', handleKeydown, { capture: true });
 
@@ -494,25 +538,7 @@
                 </div>
               {/if}
               {#each rootEntries as entry (entry.path)}
-                <FileNode
-                  {entry}
-                  workspaceRoot={workspaceRoot ?? ''}
-                  {activeFilePath}
-                  expandedPaths={expandedFolders}
-                  showHiddenFiles={effShowHiddenFiles}
-                  excludePatterns={effExcludePatterns}
-                  {refreshKeys}
-                  {pendingCreate}
-                  {crudError}
-                  onFileClick={openFile}
-                  onToggleFolder={handleToggleFolder}
-                  onCreateFile={handleCreateFile}
-                  onCreateDirectory={handleCreateDirectory}
-                  onRename={handleRename}
-                  onDelete={handleDelete}
-                  onConfirmCreate={handleConfirmCreate}
-                  onCancelCreate={handleCancelCreate}
-                />
+                <FileNode {entry} />
               {/each}
             {/if}
             {#if crudError}

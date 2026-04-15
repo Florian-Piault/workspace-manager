@@ -90,7 +90,16 @@ export function getWidgetDisplayName(widget: Widget, autoLabels: Map<string, str
   return widget.label ?? autoLabels.get(widget.id) ?? widget.type;
 }
 
+/**
+ * Memoized flatten: because the layout tree uses structural sharing (unchanged
+ * subtrees keep their reference), we can cache the flattened result per Panel
+ * identity. A WeakMap lets unused entries be collected along with their panels.
+ */
+const _flatWidgetsCache = new WeakMap<Panel, Widget[]>();
+
 export function flatWidgets(root: Panel): Widget[] {
+  const cached = _flatWidgetsCache.get(root);
+  if (cached) return cached;
   const result: Widget[] = [];
   for (const child of root.children) {
     if (isPanel(child)) {
@@ -99,6 +108,7 @@ export function flatWidgets(root: Panel): Widget[] {
       result.push(child);
     }
   }
+  _flatWidgetsCache.set(root, result);
   return result;
 }
 
