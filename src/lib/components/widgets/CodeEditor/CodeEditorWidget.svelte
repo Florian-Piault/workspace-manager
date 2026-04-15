@@ -47,6 +47,7 @@
   import FileNode from './FileNode.svelte';
   import CodeEditorHeader from './CodeEditorHeader.svelte';
   import type { FileEntry, CodeEditorConfig } from './types';
+  import { previewRegistry } from './previewRegistry';
   import * as ContextMenu from '$lib/components/ui/context-menu';
   import { File, Folder } from '@lucide/svelte';
 
@@ -92,6 +93,23 @@
   const hasOverrides = $derived(
     EDITOR_OVERRIDE_KEYS.some(k => config[k] !== undefined && config[k] !== null)
   );
+
+  // Preview state
+  let viewMode = $state<'code' | 'preview'>('code');
+  let fileContent = $state('');
+
+  const fileExt = $derived(
+    activeFilePath ? (activeFilePath.split('.').pop()?.toLowerCase() ?? '') : ''
+  );
+  const hasPreview = $derived(fileExt in previewRegistry);
+  const PreviewComponent = $derived(hasPreview ? previewRegistry[fileExt] : null);
+
+  // Auto-revert to code mode when the new file has no preview support
+  $effect(() => {
+    if (!hasPreview) {
+      untrack(() => { viewMode = 'code'; });
+    }
+  });
 
   // File tree state
   let rootEntries = $state<FileEntry[]>([]);
@@ -193,6 +211,7 @@
     fileError = null;
     try {
       const content = await invoke<string>('read_file', { path });
+      fileContent = content;
       store.updateWidgetConfig(nodeId, { ...config, activeFilePath: path });
       view?.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: content } });
       isDirty = false;
@@ -400,8 +419,10 @@
           editorThemeComp.of(effEditorTheme === 'oneDark' ? oneDark : []),
           EditorView.updateListener.of((update: import('@codemirror/view').ViewUpdate) => {
             if (update.docChanged && activeFilePath && !loading) {
+              const text = update.state.doc.toString();
+              fileContent = text;
               isDirty = true;
-              scheduleSave(update.state.doc.toString());
+              scheduleSave(text);
             }
           })
         ]
@@ -441,10 +462,13 @@
     {effShowHiddenFiles}
     {effExcludePatterns}
     {pillControls}
+    {viewMode}
+    {hasPreview}
     onToggleTree={toggleTree}
     onSetLanguageOverride={setLanguageOverride}
     onSetOverride={setOverride}
     onResetOverrides={resetOverrides}
+    onToggleViewMode={() => { viewMode = viewMode === 'code' ? 'preview' : 'code'; }}
   />
 
   <div class="min-h-0 flex-1 overflow-hidden">
@@ -542,10 +566,21 @@
         <PaneResizer class="w-1 bg-border hover:bg-primary/50 transition-colors" />
       {/if}
 
-      <!-- Éditeur CodeMirror -->
+      <!-- Éditeur CodeMirror + zone de prévisualisation -->
       <Pane class="flex flex-col overflow-hidden">
         <div class="relative min-h-0 flex-1">
-          <div bind:this={editorContainer} class="h-full w-full overflow-hidden"></div>
+          <!-- CodeMirror: always mounted, hidden in preview mode to preserve editor state -->
+          <div
+            bind:this={editorContainer}
+            class="h-full w-full overflow-hidden {viewMode === 'preview' ? 'hidden' : ''}"
+          ></div>
+
+          <!-- Preview panel: shown only when a previewer exists for the active file -->
+          {#if viewMode === 'preview' && PreviewComponent && activeFilePath}
+            <div class="absolute inset-0 overflow-hidden">
+              <PreviewComponent content={fileContent} filePath={activeFilePath} />
+            </div>
+          {/if}
 
           {#if fileError}
             <div class="absolute inset-0 flex items-center justify-center bg-background/80">
