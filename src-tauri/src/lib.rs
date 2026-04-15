@@ -29,6 +29,12 @@ pub fn run() {
             sql: include_str!("../migrations/003_quick_actions.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "terminal_history",
+            sql: include_str!("../migrations/004_terminal_history.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
