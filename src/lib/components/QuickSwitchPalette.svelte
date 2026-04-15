@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { store } from '$lib/state.svelte';
-  import { settings } from '$lib/settings.svelte';
+  import { registerKeybindAction } from '$lib/keybinds.svelte';
   import { flatWidgets, getWidgetDisplayName } from '$lib/layout';
   import type { Widget } from '$lib/types';
   import { Search, Terminal, TextAlignStart, Globe, Zap, FolderOpen } from '@lucide/svelte';
@@ -81,23 +81,22 @@
     closePalette();
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (!open) {
-      if ((e.metaKey || e.ctrlKey) && e.key === settings.keybinds.quickSwitch) {
-        e.preventDefault();
-        openPalette();
-      }
-      return;
-    }
-    if (e.key === 'Escape') { e.preventDefault(); closePalette(); return; }
+  // Navigation interne (uniquement quand la palette est ouverte).
+  function handleInPaletteKeys(e: KeyboardEvent) {
+    if (!open) return;
+    if (e.key === 'Escape')    { e.preventDefault(); closePalette(); return; }
     if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = Math.min(selectedIndex + 1, allItems.length - 1); return; }
-    if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = Math.max(selectedIndex - 1, 0); return; }
-    if (e.key === 'Enter') { e.preventDefault(); activate(selectedIndex); return; }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); selectedIndex = Math.max(selectedIndex - 1, 0); return; }
+    if (e.key === 'Enter')     { e.preventDefault(); activate(selectedIndex); return; }
   }
 
   onMount(() => {
-    window.addEventListener('keydown', handleKeydown, { capture: true });
-    return () => window.removeEventListener('keydown', handleKeydown, { capture: true });
+    window.addEventListener('keydown', handleInPaletteKeys, { capture: true });
+    const offOpen = registerKeybindAction('quickSwitch', () => openPalette());
+    return () => {
+      window.removeEventListener('keydown', handleInPaletteKeys, { capture: true });
+      offOpen();
+    };
   });
 </script>
 

@@ -42,6 +42,7 @@
   // App
   import { store } from '$lib/state.svelte';
   import { settings } from '$lib/settings.svelte';
+  import { registerKeybindAction } from '$lib/keybinds.svelte';
   import { detectLanguage } from '$lib/utils/language-detect';
   import type { Snippet } from 'svelte';
   import FileNode from './FileNode.svelte';
@@ -126,7 +127,6 @@
   const autocompletionComp = new Compartment();
   const lintComp = new Compartment();
   const editorThemeComp = new Compartment();
-  const appKeymapComp = new Compartment();
 
   $effect(() => {
     const label = fileName ?? 'Code Editor';
@@ -158,10 +158,6 @@
   $effect(() => { dispatch(autocompletionComp, effAutocompletion ? cmAutocompletion() : []); });
   $effect(() => { dispatch(lintComp, effLint ? lintGutter() : []); });
   $effect(() => { dispatch(editorThemeComp, effEditorTheme === 'oneDark' ? oneDark : []); });
-  $effect(() => {
-    const saveKey = `Mod-${settings.keybinds.saveFile}`;
-    dispatch(appKeymapComp, keymap.of([{ key: saveKey, run: () => { saveImmediately(); return true; } }]));
-  });
 
   // Re-load tree when filesystem settings change
   $effect(() => {
@@ -360,18 +356,18 @@
     }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (store.activePanelId !== nodeId) return;
-    const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.shiftKey && e.key === settings.keybinds.toggleFileTree) {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleTree();
-    }
-  }
+  let unregisterKeybinds: (() => void) | null = null;
 
   onMount(async () => {
-    window.addEventListener('keydown', handleKeydown, { capture: true });
+    const offSave = registerKeybindAction('saveFile', () => {
+      if (store.activePanelId !== nodeId) return;
+      saveImmediately();
+    });
+    const offTree = registerKeybindAction('toggleFileTree', () => {
+      if (store.activePanelId !== nodeId) return;
+      toggleTree();
+    });
+    unregisterKeybinds = () => { offSave(); offTree(); };
 
     view = new EditorView({
       state: EditorState.create({
@@ -382,9 +378,6 @@
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           bracketMatching(), closeBrackets(), rectangularSelection(), crosshairCursor(),
           highlightSelectionMatches(),
-          appKeymapComp.of(keymap.of([
-            { key: `Mod-${settings.keybinds.saveFile}`, run: () => { saveImmediately(); return true; } }
-          ])),
           keymap.of([indentWithTab, ...closeBracketsKeymap, ...defaultKeymap,
             ...searchKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap, ...lintKeymap]),
           EditorView.theme({ '&': { height: '100%' }, '.cm-scroller': { overflow: 'auto' } }),
@@ -414,7 +407,7 @@
   });
 
   onDestroy(() => {
-    window.removeEventListener('keydown', handleKeydown, { capture: true });
+    unregisterKeybinds?.();
     if (saveTimer !== null) clearTimeout(saveTimer);
     view?.destroy();
   });
