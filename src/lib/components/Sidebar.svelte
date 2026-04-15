@@ -25,6 +25,7 @@
   import type { Workspace } from '$lib/types';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import { settings } from '$lib/settings.svelte';
+  import { registerKeybindAction } from '$lib/keybinds.svelte';
 
   const appWindow = getCurrentWindow();
   const isMac =
@@ -90,18 +91,7 @@
     }
 
     // Toggle sidebar shortcut (configurable)
-    function handleKeydown(e: KeyboardEvent) {
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.key === settings.keybinds.toggleSidebar
-      ) {
-        e.preventDefault();
-        toggle();
-      }
-    }
-    window.addEventListener('keydown', handleKeydown, { capture: true });
-    return () =>
-      window.removeEventListener('keydown', handleKeydown, { capture: true });
+    return registerKeybindAction('toggleSidebar', () => toggle());
   });
 </script>
 

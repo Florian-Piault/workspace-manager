@@ -3,16 +3,19 @@
   import { onMount } from 'svelte';
   import { theme } from '$lib/theme.svelte';
   import { settings } from '$lib/settings.svelte';
+  import { installGlobalKeybindMatcher } from '$lib/keybinds.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
   import QuickSwitchPalette from '$lib/components/QuickSwitchPalette.svelte';
 
   let { children } = $props();
 
-  onMount(async () => {
+  onMount(() => {
     theme.init();
-    await settings.init().catch((err) => {
+    settings.init().catch((err) => {
       console.error('[Settings] init failed:', err);
     });
+    // Un seul listener global pour tous les raccourcis configurables.
+    return installGlobalKeybindMatcher();
   });
 </script>
 

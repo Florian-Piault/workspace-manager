@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { store } from '$lib/state.svelte';
   import { settings } from '$lib/settings.svelte';
+  import { registerKeybindAction } from '$lib/keybinds.svelte';
   import { flatWidgets } from '$lib/layout';
   import LayoutEngine from '$lib/components/LayoutEngine.svelte';
   import PanelOverlay from '$lib/components/PanelOverlay.svelte';
@@ -42,27 +43,18 @@
       .then(() => { storeReady = true; })
       .catch((err) => { console.error('[WorkspaceStore] init failed:', err); storeReady = true; });
 
-    function handleKeydown(e: KeyboardEvent) {
-      if (!store.activePanelId) return;
-      const mod = e.ctrlKey || e.metaKey;
-      const kb = settings.keybinds;
-      if (mod && e.key === kb.splitHorizontal) {
-        e.preventDefault();
-        e.stopPropagation();
-        store.splitPanel(store.activePanelId, 'horizontal');
-      } else if (mod && e.key === kb.splitVertical) {
-        e.preventDefault();
-        e.stopPropagation();
-        store.splitPanel(store.activePanelId, 'vertical');
-      } else if (mod && e.key === kb.closePanel) {
-        e.preventDefault();
-        e.stopPropagation();
-        store.closePanel(store.activePanelId);
-      }
-    }
-
-    window.addEventListener('keydown', handleKeydown, { capture: true });
-    return () => window.removeEventListener('keydown', handleKeydown, { capture: true });
+    const offs = [
+      registerKeybindAction('splitHorizontal', () => {
+        if (store.activePanelId) store.splitPanel(store.activePanelId, 'horizontal');
+      }),
+      registerKeybindAction('splitVertical', () => {
+        if (store.activePanelId) store.splitPanel(store.activePanelId, 'vertical');
+      }),
+      registerKeybindAction('closePanel', () => {
+        if (store.activePanelId) store.closePanel(store.activePanelId);
+      }),
+    ];
+    return () => offs.forEach(off => off());
   });
 </script>
 

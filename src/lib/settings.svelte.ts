@@ -1,5 +1,10 @@
 import Database from '@tauri-apps/plugin-sql';
+import { migrateLegacyKeybind } from './utils/keybind';
 
+/**
+ * Valeurs sous forme de chaîne canonique (ex. "Mod+S", "Mod+Shift+B",
+ * "Mod+K Mod+S"). Voir `src/lib/utils/keybind.ts`.
+ */
 export interface KeybindSettings {
   splitHorizontal: string;
   splitVertical: string;
@@ -9,9 +14,6 @@ export interface KeybindSettings {
   toggleFileTree: string;
   quickSwitch: string;
 }
-
-// Combinaisons bloquées (système/navigateur/Tauri)
-export const BLOCKED_KEYS = new Set(['r', 'F5', 'F12', 'F4', 'a', 'c', 'v', 'x', 'z', 'y']);
 
 export interface EditorDefaults {
   lineNumbers: boolean;
@@ -93,13 +95,13 @@ const GENERAL_DEFAULTS: GeneralSettings = {
 };
 
 export const KEYBIND_DEFAULTS: KeybindSettings = {
-  splitHorizontal: '\\',
-  splitVertical: '-',
-  closePanel: 'w',
-  toggleSidebar: 'b',
-  saveFile: 's',
-  toggleFileTree: 'B',
-  quickSwitch: 'p',
+  splitHorizontal: 'Mod+\\',
+  splitVertical:   'Mod+-',
+  closePanel:      'Mod+W',
+  toggleSidebar:   'Mod+B',
+  saveFile:        'Mod+S',
+  toggleFileTree:  'Mod+Shift+B',
+  quickSwitch:     'Mod+P',
 };
 
 function createSettingsStore() {
@@ -116,6 +118,7 @@ function createSettingsStore() {
     const rows = await db.select<Array<{ key: string; value: string }>>(
       'SELECT key, value FROM settings'
     );
+    let keybindsMigrated = false;
     for (const { key, value } of rows) {
       try {
         const parsed = JSON.parse(value);
@@ -123,12 +126,52 @@ function createSettingsStore() {
         else if (key === 'terminal') terminal = { ...TERMINAL_DEFAULTS, ...parsed };
         else if (key === 'browser') browser = { ...BROWSER_DEFAULTS, ...parsed };
         else if (key === 'general') general = { ...GENERAL_DEFAULTS, ...parsed };
-        else if (key === 'keybinds') keybinds = { ...KEYBIND_DEFAULTS, ...parsed };
+        else if (key === 'keybinds') {
+          const { migrated, didMigrate } = migrateKeybindsRecord(parsed);
+          keybinds = { ...KEYBIND_DEFAULTS, ...migrated };
+          keybindsMigrated = didMigrate;
+        }
       } catch {
         // keep defaults on malformed JSON
       }
     }
+    if (keybindsMigrated) {
+      // Persiste la version migrée pour éviter de remigrer à chaque lancement.
+      await persist('keybinds', keybinds);
+    }
     ready = true;
+  }
+
+  /**
+   * Migre les valeurs de l'ancien format "single key" vers le format canonique.
+   * Cas spécial `toggleFileTree` : l'ancien code ajoutait Shift en dur ; on le préserve.
+   */
+  function migrateKeybindsRecord(parsed: unknown): { migrated: Partial<KeybindSettings>; didMigrate: boolean } {
+    if (!parsed || typeof parsed !== 'object') return { migrated: {}, didMigrate: false };
+    const src = parsed as Record<string, unknown>;
+    const out: Partial<KeybindSettings> = {};
+    let didMigrate = false;
+    for (const key of Object.keys(KEYBIND_DEFAULTS) as (keyof KeybindSettings)[]) {
+      const raw = src[key];
+      if (raw == null) continue;
+      const defaultCombo = KEYBIND_DEFAULTS[key];
+      if (typeof raw === 'string') {
+        const isLegacy = !(raw.includes('+') || raw.includes(' '));
+        if (isLegacy) {
+          // `toggleFileTree` avait un Shift hardcodé dans l'ancien code.
+          if (key === 'toggleFileTree') {
+            const upper = raw.length === 1 ? raw.toUpperCase() : raw;
+            out[key] = `Mod+Shift+${upper}`;
+          } else {
+            out[key] = migrateLegacyKeybind(raw, defaultCombo);
+          }
+          didMigrate = true;
+        } else {
+          out[key] = raw;
+        }
+      }
+    }
+    return { migrated: out, didMigrate };
   }
 
   async function persist(key: string, value: unknown) {

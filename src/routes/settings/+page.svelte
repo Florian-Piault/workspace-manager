@@ -3,8 +3,13 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open } from '@tauri-apps/plugin-dialog';
   import { theme } from '$lib/theme.svelte';
-  import { settings, TERMINAL_COLOR_PRESETS, KEYBIND_DEFAULTS, BLOCKED_KEYS, type KeybindSettings } from '$lib/settings.svelte';
-  import { Sun, Moon, RotateCcw, AlertTriangle, Keyboard } from '@lucide/svelte';
+  import { settings, TERMINAL_COLOR_PRESETS, type KeybindSettings } from '$lib/settings.svelte';
+  import {
+    chordFromEvent, parseKeybind, serializeKeybind, formatKeybind,
+    isAssignable, isBlocked, isMac,
+    type Chord, type Keybind
+  } from '$lib/utils/keybind';
+  import { Sun, Moon, RotateCcw, AlertTriangle, Keyboard, X } from '@lucide/svelte';
   import EditorSettingsFields from '$lib/components/widgets/CodeEditor/EditorSettingsFields.svelte';
 
   interface ShellInfo { name: string; path: string; }
@@ -36,7 +41,7 @@
     toggleSidebar:   { label: 'Afficher/masquer la sidebar', description: 'Bascule la visibilité de la barre latérale', category: 'Interface' },
     quickSwitch:     { label: 'Palette de navigation rapide', description: 'Ouvre la palette pour basculer entre workspaces et panneaux', category: 'Interface' },
     saveFile:        { label: 'Sauvegarder le fichier', description: 'Enregistre le fichier ouvert dans l\'éditeur', category: 'Widget / Éditeur' },
-    toggleFileTree:  { label: 'Afficher/masquer l\'arborescence', description: 'Bascule la visibilité du panneau fichiers du CodeEditor (Mod+Shift+touche)', category: 'Widget / Éditeur' },
+    toggleFileTree:  { label: 'Afficher/masquer l\'arborescence', description: 'Bascule la visibilité du panneau fichiers du CodeEditor', category: 'Widget / Éditeur' },
   };
 
   const KEYBIND_CATEGORY_IDS = {
@@ -48,24 +53,67 @@
     node.focus();
   }
 
-  let capturing = $state<KeybindKey | null>(null);
-  let captureError = $state<string | null>(null);
+  // ── Capture de raccourci (style VSCode) ──────────────────────────────────────
+  // 1 ou 2 chords (séquence). Timeout auto pour valider un chord simple après
+  // un court délai d'inactivité, ou commit immédiat à 2 chords.
 
-  function formatKey(key: string) {
-    if (key === '\\') return 'Backslash';
-    if (key === '-') return '-';
-    return key.toUpperCase();
+  const mac = isMac();
+  const COMMIT_DELAY_MS = 900;
+
+  let capturing = $state<KeybindKey | null>(null);
+  let captureChords = $state<Chord[]>([]);
+  let captureError = $state<string | null>(null);
+  let commitTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearCommitTimer() {
+    if (commitTimer !== null) { clearTimeout(commitTimer); commitTimer = null; }
   }
 
-  function findConflicts(selfKey: KeybindKey, key: string): string[] {
+  function displayKeybindOrPlaceholder(raw: string): string {
+    const kb = parseKeybind(raw);
+    return kb ? formatKeybind(kb, { mac }) : '—';
+  }
+
+  function findConflicts(selfKey: KeybindKey, value: string): string[] {
     return (Object.keys(settings.keybinds) as KeybindKey[])
-      .filter(k => k !== selfKey && settings.keybinds[k] === key)
+      .filter(k => k !== selfKey && settings.keybinds[k] === value)
       .map(k => KEYBIND_LABELS[k].label);
   }
 
   function startCapture(key: KeybindKey) {
     capturing = key;
+    captureChords = [];
     captureError = null;
+    clearCommitTimer();
+  }
+
+  function endCapture() {
+    clearCommitTimer();
+    capturing = null;
+    captureChords = [];
+  }
+
+  function commit() {
+    clearCommitTimer();
+    if (!capturing || captureChords.length === 0) { endCapture(); return; }
+    const kb: Keybind = [...captureChords];
+    if (!kb.every(isAssignable)) {
+      captureError = 'Au moins un modificateur est requis (sauf pour F1-F12, Échap, etc.).';
+      captureChords = [];
+      return;
+    }
+    if (isBlocked(kb)) {
+      captureError = `La combinaison ${formatKeybind(kb, { mac })} est réservée et ne peut pas être assignée.`;
+      captureChords = [];
+      return;
+    }
+    settings.setKeybinds({ [capturing]: serializeKeybind(kb) });
+    endCapture();
+  }
+
+  function clearCurrent(key: KeybindKey) {
+    // Supprime l'assignation en la remettant à vide — évite un déclenchement accidentel.
+    settings.setKeybinds({ [key]: '' });
   }
 
   function handleCaptureKeydown(e: KeyboardEvent) {
@@ -73,24 +121,32 @@
     e.preventDefault();
     e.stopPropagation();
 
-    if (e.key === 'Escape') {
-      capturing = null;
+    // Échap : annule la capture en cours.
+    if (e.key === 'Escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
       captureError = null;
+      endCapture();
       return;
     }
 
-    if (['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) return;
+    const chord = chordFromEvent(e, { mac });
+    if (!chord) return; // touche modificatrice isolée
 
-    const normalizedKey = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-
-    if (BLOCKED_KEYS.has(normalizedKey)) {
-      captureError = `La combinaison Mod+${formatKey(normalizedKey)} est réservée et ne peut pas être assignée.`;
-      return;
-    }
-
-    settings.setKeybinds({ [capturing]: normalizedKey });
-    capturing = null;
     captureError = null;
+    if (captureChords.length >= 2) {
+      captureChords = [chord]; // reset et recommence
+    } else {
+      captureChords = [...captureChords, chord];
+    }
+
+    if (captureChords.length >= 2) {
+      commit(); // 2 chords = séquence complète, validation immédiate
+      return;
+    }
+
+    // Arme un timer : si aucun chord suivant n'arrive dans COMMIT_DELAY_MS,
+    // on valide en tant que raccourci simple.
+    clearCommitTimer();
+    commitTimer = setTimeout(commit, COMMIT_DELAY_MS);
   }
 
   const TERMINAL_PRESET_OPTIONS = [
@@ -472,9 +528,12 @@
             <div class="divide-y divide-border rounded-lg border border-border bg-card">
               {#each entries as key}
                 {@const meta = KEYBIND_LABELS[key]}
-                {@const currentKey = settings.keybinds[key]}
-                {@const conflicts = findConflicts(key, currentKey)}
+                {@const currentValue = settings.keybinds[key]}
+                {@const conflicts = currentValue ? findConflicts(key, currentValue) : []}
                 {@const isCapturing = capturing === key}
+                {@const partial = isCapturing && captureChords.length > 0
+                  ? formatKeybind(captureChords, { mac })
+                  : ''}
                 <div class="flex items-center justify-between px-4 py-3">
                   <div>
                     <p class="text-sm font-medium">{meta.label}</p>
@@ -489,20 +548,35 @@
                   <div class="flex items-center gap-2">
                     {#if isCapturing}
                       <button
-                        class="min-w-32 rounded-md border-2 border-primary bg-primary/10 px-3 py-1 text-center text-xs font-mono text-primary focus:outline-none animate-pulse"
+                        class="min-w-40 rounded-md border-2 border-primary bg-primary/10 px-3 py-1 text-center text-xs font-mono text-primary focus:outline-none"
+                        class:animate-pulse={captureChords.length === 0}
                         onkeydown={handleCaptureKeydown}
-                        onblur={() => { capturing = null; captureError = null; }}
+                        onblur={() => { endCapture(); }}
                         use:focusOnMount
                       >
-                        Appuyez sur une touche…
+                        {#if captureChords.length === 0}
+                          Appuyez sur une combinaison…
+                        {:else}
+                          {partial}<span class="ml-1 text-muted-foreground">…</span>
+                        {/if}
                       </button>
                     {:else}
+                      {#if currentValue}
+                        <button
+                          onclick={() => clearCurrent(key)}
+                          class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+                          title="Supprimer ce raccourci"
+                          aria-label="Supprimer ce raccourci"
+                        >
+                          <X class="h-3 w-3" />
+                        </button>
+                      {/if}
                       <button
                         onclick={() => startCapture(key)}
                         class="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
                       >
                         <Keyboard class="h-3 w-3" />
-                        <kbd class="font-mono">Mod+{formatKey(currentKey)}</kbd>
+                        <kbd class="font-mono">{displayKeybindOrPlaceholder(currentValue)}</kbd>
                       </button>
                     {/if}
                   </div>
