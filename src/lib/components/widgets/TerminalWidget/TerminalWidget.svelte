@@ -7,6 +7,7 @@
   import type { Snippet } from 'svelte';
   import { store } from '$lib/state.svelte';
   import { settings, TERMINAL_COLOR_PRESETS } from '$lib/settings.svelte';
+  import { terminalHistory } from '$lib/terminal_history.svelte';
   import { nodeExists } from '$lib/layout';
   import '@xterm/xterm/css/xterm.css';
 
@@ -19,6 +20,8 @@
   let ptyId: string | null = $state(null);
   let exited = $state(false);
   let error = $state<string | null>(null);
+
+  let lineBuffer = '';
 
   let unlistenData: (() => void) | null = null;
   let unlistenExit: (() => void) | null = null;
@@ -104,6 +107,23 @@
 
     terminal.onData((data) => {
       if (!ptyId) return;
+      // Capturer les commandes pour l'historique persistant
+      for (const char of data) {
+        if (char === '\r' || char === '\n') {
+          const cmd = lineBuffer.trim();
+          if (cmd) {
+            const wsId = store.activeWorkspaceId ?? '';
+            if (wsId) terminalHistory.add(wsId, nodeId, cmd);
+          }
+          lineBuffer = '';
+        } else if (char === '\x7f' || char === '\b') {
+          lineBuffer = lineBuffer.slice(0, -1);
+        } else if (char === '\x03' || char === '\x15') {
+          lineBuffer = '';
+        } else if (char >= ' ' && char !== '\x1b') {
+          lineBuffer += char;
+        }
+      }
       invoke('pty_write', { id: ptyId, data }).catch(() => {});
     });
 
@@ -121,6 +141,20 @@
     if (scrollbackSrc) {
       const binary = atob(scrollbackSrc);
       terminal.write(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+    }
+
+    // Afficher l'historique des commandes dans le terminal si session fraîche
+    const wsId = store.activeWorkspaceId ?? '';
+    if (wsId && !scrollbackSrc) {
+      const history = await terminalHistory.load(wsId);
+      if (history.length > 0) {
+        const recent = [...history].reverse();
+        terminal.write('\x1b[33m--- Historique de la session précédente ---\x1b[0m\r\n');
+        for (const entry of recent) {
+          terminal.write(`\x1b[90m${entry.command}\x1b[0m\r\n`);
+        }
+        terminal.write('\x1b[33m-------------------------------------------\x1b[0m\r\n');
+      }
     }
 
     resizeObserver = new ResizeObserver(() => {
