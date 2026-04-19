@@ -116,43 +116,46 @@
                   <!-- skip file headers -->
                 {:else if line.type === 'hunk'}
                   <tr class="bg-muted/60">
-                    <td colspan="3" class="px-2 py-0.5 text-[10px] italic text-muted-foreground/60 select-none">
+                    <td colspan="4" class="px-2 py-0.5 text-[10px] italic text-muted-foreground/60 select-none">
                       {line.content}
                     </td>
                   </tr>
                 {:else if line.type === 'added'}
-                  <tr class="border-l-2 border-primary/50 bg-primary/5">
-                    <td class="w-8 select-none border-r border-border/30 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/30">
+                  <tr class="border-l-2 border-primary/70 bg-primary/[0.13]">
+                    <td class="w-7 select-none border-r border-border/20 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/30">
                       {line.oldNo ?? ''}
                     </td>
-                    <td class="w-8 select-none border-r border-border/30 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/40">
+                    <td class="w-7 select-none border-r border-border/20 pr-1 text-right text-[10px] tabular-nums text-primary/60">
                       {line.newNo ?? ''}
                     </td>
-                    <td class="whitespace-pre pl-2 text-foreground">{line.content}</td>
+                    <td class="w-4 select-none text-center text-[10px] font-bold text-primary/70">+</td>
+                    <td class="whitespace-pre pl-1 text-foreground">{line.content}</td>
                   </tr>
                 {:else if line.type === 'removed'}
-                  <tr class="border-l-2 border-destructive/50 bg-destructive/5">
-                    <td class="w-8 select-none border-r border-border/30 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/40">
+                  <tr class="border-l-2 border-destructive/70 bg-destructive/[0.10]">
+                    <td class="w-7 select-none border-r border-border/20 pr-1 text-right text-[10px] tabular-nums text-destructive/50">
                       {line.oldNo ?? ''}
                     </td>
-                    <td class="w-8 select-none border-r border-border/30 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/30">
+                    <td class="w-7 select-none border-r border-border/20 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/20">
                       {line.newNo ?? ''}
                     </td>
-                    <td class="whitespace-pre pl-2 text-foreground">{line.content}</td>
+                    <td class="w-4 select-none text-center text-[10px] font-bold text-destructive/70">-</td>
+                    <td class="whitespace-pre pl-1 text-foreground">{line.content}</td>
                   </tr>
                 {:else if line.type === 'context'}
                   <tr>
-                    <td class="w-8 select-none border-r border-border/30 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/30">
+                    <td class="w-7 select-none border-r border-border/20 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/30">
                       {line.oldNo ?? ''}
                     </td>
-                    <td class="w-8 select-none border-r border-border/30 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/30">
+                    <td class="w-7 select-none border-r border-border/20 pr-1 text-right text-[10px] tabular-nums text-muted-foreground/30">
                       {line.newNo ?? ''}
                     </td>
-                    <td class="whitespace-pre pl-2 text-muted-foreground/70">{line.content}</td>
+                    <td class="w-4 select-none"></td>
+                    <td class="whitespace-pre pl-1 text-muted-foreground/70">{line.content}</td>
                   </tr>
                 {:else if line.type === 'noNewline'}
                   <tr>
-                    <td colspan="3" class="pl-2 text-[10px] italic text-muted-foreground/40 select-none">
+                    <td colspan="4" class="pl-2 text-[10px] italic text-muted-foreground/40 select-none">
                       {line.content}
                     </td>
                   </tr>

@@ -24,3 +24,18 @@ export interface SelectedFile {
   path: string;
   staged: boolean;
 }
+
+export interface CommitInfo {
+  hash: string;
+  short_hash: string;
+  message: string;
+  author_name: string;
+  timestamp: number;
+  refs: string[];
+}
+
+export interface OpResult {
+  op: string;
+  output: string;
+  success: boolean;
+}

@@ -1,5 +1,6 @@
 use git2::{BranchType, DiffFormat, DiffOptions, Repository, Status, StatusOptions};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
@@ -221,6 +222,55 @@ fn run_git(path: &str, args: &[&str]) -> Result<String, String> {
     } else {
         Err(String::from_utf8_lossy(&out.stderr).into_owned())
     }
+}
+
+#[derive(Serialize)]
+pub struct CommitInfo {
+    pub hash: String,
+    pub short_hash: String,
+    pub message: String,
+    pub author_name: String,
+    pub timestamp: i64,
+    pub refs: Vec<String>,
+}
+
+#[tauri::command]
+pub fn git_log(path: String, limit: usize) -> Result<Vec<CommitInfo>, String> {
+    let repo = open_repo(&path)?;
+
+    // Build OID → ref names map in one pass
+    let mut ref_map: HashMap<git2::Oid, Vec<String>> = HashMap::new();
+    for r in repo.references().map_err(git_err)? {
+        let r = r.map_err(git_err)?;
+        if let (Some(oid), Some(name)) = (r.target(), r.shorthand()) {
+            ref_map.entry(oid).or_default().push(name.to_string());
+        }
+    }
+
+    let mut revwalk = repo.revwalk().map_err(git_err)?;
+    revwalk.push_head().map_err(git_err)?;
+    revwalk.set_sorting(git2::Sort::TIME).map_err(git_err)?;
+
+    let mut commits = Vec::new();
+    for oid in revwalk.take(limit) {
+        let oid = oid.map_err(git_err)?;
+        let commit = repo.find_commit(oid).map_err(git_err)?;
+        let hash = oid.to_string();
+        commits.push(CommitInfo {
+            short_hash: hash[..7].to_string(),
+            message: commit.summary().unwrap_or("").to_string(),
+            author_name: commit.author().name().unwrap_or("").to_string(),
+            timestamp: commit.time().seconds(),
+            refs: ref_map.remove(&oid).unwrap_or_default(),
+            hash,
+        });
+    }
+    Ok(commits)
+}
+
+#[tauri::command]
+pub fn git_delete_remote_branch(path: String, remote: String, branch: String) -> Result<String, String> {
+    run_git(&path, &["push", &remote, "--delete", &branch])
 }
 
 #[tauri::command]

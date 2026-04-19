@@ -6,12 +6,14 @@
     branches,
     onCheckout,
     onCreateBranch,
-    onDeleteBranch
+    onDeleteBranch,
+    onDeleteRemoteBranch
   }: {
     branches: BranchInfo[];
     onCheckout: (name: string) => Promise<void>;
     onCreateBranch: (name: string) => Promise<void>;
     onDeleteBranch: (name: string) => Promise<void>;
+    onDeleteRemoteBranch: (remote: string, branch: string) => Promise<void>;
   } = $props();
 
   let expanded = $state(true);
@@ -37,6 +39,16 @@
 
   async function handleDelete(name: string) {
     await onDeleteBranch(name);
+    confirmDelete = null;
+  }
+
+  async function handleDeleteRemote(fullName: string) {
+    // fullName = "origin/feature-xyz" → remote="origin", branch="feature-xyz"
+    const slash = fullName.indexOf('/');
+    if (slash === -1) return;
+    const remote = fullName.slice(0, slash);
+    const branch = fullName.slice(slash + 1);
+    await onDeleteRemoteBranch(remote, branch);
     confirmDelete = null;
   }
 </script>
@@ -124,17 +136,37 @@
         </div>
       {/each}
 
-      <!-- Remote branches (read-only) -->
+      <!-- Remote branches -->
       {#if remote.length > 0}
         <div class="mt-1 px-2 pb-0.5 text-[10px] tracking-widest uppercase text-muted-foreground/40">
           Remote
         </div>
         {#each remote as branch (branch.name)}
-          <div class="flex items-center gap-1.5 px-2 py-0.5">
+          <div class="group flex items-center gap-1.5 px-2 py-0.5">
             <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-transparent"></span>
             <span class="min-w-0 flex-1 truncate font-mono text-xs italic text-muted-foreground/50">
               {branch.name}
             </span>
+
+            {#if confirmDelete === branch.name}
+              <button
+                onclick={() => handleDeleteRemote(branch.name)}
+                class="text-[10px] text-destructive hover:underline"
+              >Suppr ?</button>
+              <button
+                onclick={() => (confirmDelete = null)}
+                class="text-[10px] text-muted-foreground hover:underline"
+              >Annuler</button>
+            {:else}
+              <button
+                onclick={() => (confirmDelete = branch.name)}
+                aria-label="Supprimer {branch.name}"
+                class="shrink-0 opacity-0 group-hover:opacity-100
+                       text-muted-foreground hover:text-destructive transition-all"
+              >
+                <X class="h-3 w-3" />
+              </button>
+            {/if}
           </div>
         {/each}
       {/if}
