@@ -12,7 +12,7 @@ import {
   makeInitialRoot,
   nodeExists,
   findPanelById,
-  type DropSide,
+  type DropSide
 } from './layout';
 
 export type { DropSide };
@@ -36,7 +36,7 @@ export class WorkspaceStore {
   autoLabels = new SvelteMap<string, string>();
 
   activeWorkspace = $derived(
-    this.workspaces.find((w) => w.id === this.activeWorkspaceId) ?? null
+    this.workspaces.find(w => w.id === this.activeWorkspaceId) ?? null
   );
 
   activeLayout = $derived(
@@ -51,17 +51,17 @@ export class WorkspaceStore {
   async init(): Promise<void> {
     this.db = await Database.load('sqlite:workspace.db');
 
-    const wsRows = await this.db.select<Array<{ id: string; name: string; path: string }>>(
-      'SELECT * FROM workspaces'
-    );
-    const layoutRows = await this.db.select<Array<{ id: string; workspace_id: string; config: string }>>(
-      'SELECT id, workspace_id, config FROM layouts'
-    );
+    const wsRows = await this.db.select<
+      Array<{ id: string; name: string; path: string }>
+    >('SELECT * FROM workspaces');
+    const layoutRows = await this.db.select<
+      Array<{ id: string; workspace_id: string; config: string }>
+    >('SELECT id, workspace_id, config FROM layouts');
 
-    const layoutByWorkspace = new Map(layoutRows.map((r) => [r.workspace_id, r]));
-    this.workspaces = wsRows.map((r) => ({
+    const layoutByWorkspace = new Map(layoutRows.map(r => [r.workspace_id, r]));
+    this.workspaces = wsRows.map(r => ({
       ...r,
-      layoutId: layoutByWorkspace.get(r.id)?.id ?? null,
+      layoutId: layoutByWorkspace.get(r.id)?.id ?? null
     }));
 
     // Apply saved workspace order from localStorage
@@ -69,11 +69,15 @@ export class WorkspaceStore {
       const saved = localStorage.getItem('ws-order');
       if (saved) {
         const ids: string[] = JSON.parse(saved);
-        const ordered = ids.flatMap((id) => this.workspaces.filter((w) => w.id === id));
-        const rest = this.workspaces.filter((w) => !ids.includes(w.id));
+        const ordered = ids.flatMap(id =>
+          this.workspaces.filter(w => w.id === id)
+        );
+        const rest = this.workspaces.filter(w => !ids.includes(w.id));
         this.workspaces = [...ordered, ...rest];
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     for (const row of layoutRows) {
       const parsed = JSON.parse(row.config);
@@ -81,7 +85,7 @@ export class WorkspaceStore {
       const layout: Layout = {
         id: row.id,
         workspaceId: row.workspace_id,
-        root,
+        root
       };
       this.layouts = { ...this.layouts, [row.id]: layout };
     }
@@ -89,11 +93,10 @@ export class WorkspaceStore {
 
   async addWorkspace(name: string, path: string): Promise<Workspace> {
     const id = crypto.randomUUID();
-    await this.db!.execute('INSERT INTO workspaces (id, name, path) VALUES (?, ?, ?)', [
-      id,
-      name,
-      path,
-    ]);
+    await this.db!.execute(
+      'INSERT INTO workspaces (id, name, path) VALUES (?, ?, ?)',
+      [id, name, path]
+    );
     const workspace: Workspace = { id, name, path, layoutId: null };
     this.workspaces = [...this.workspaces, workspace];
     return workspace;
@@ -103,13 +106,13 @@ export class WorkspaceStore {
     this.activeWorkspaceId = id;
     this.activePanelId = null;
     if (id) {
-      const ws = this.workspaces.find((w) => w.id === id);
+      const ws = this.workspaces.find(w => w.id === id);
       if (ws && !ws.layoutId) {
         const root = makeInitialRoot();
         const layoutId = crypto.randomUUID();
         const layout: Layout = { id: layoutId, workspaceId: id, root };
         this.layouts = { ...this.layouts, [layoutId]: layout };
-        this.workspaces = this.workspaces.map((w) =>
+        this.workspaces = this.workspaces.map(w =>
           w.id === id ? { ...w, layoutId } : w
         );
         this._debouncedSave();
@@ -125,7 +128,10 @@ export class WorkspaceStore {
     const layout = this.activeLayout;
     if (!layout) return;
     const newRoot = splitPanelHelper(layout.root, nodeId, direction);
-    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this.layouts = {
+      ...this.layouts,
+      [layout.id]: { ...layout, root: newRoot }
+    };
     this._debouncedSave();
   }
 
@@ -133,7 +139,10 @@ export class WorkspaceStore {
     const layout = this.activeLayout;
     if (!layout) return;
     const newRoot = assignWidgetHelper(layout.root, nodeId, type);
-    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this.layouts = {
+      ...this.layouts,
+      [layout.id]: { ...layout, root: newRoot }
+    };
     this._debouncedSave();
   }
 
@@ -141,20 +150,26 @@ export class WorkspaceStore {
     const layout = this.activeLayout;
     if (!layout) return;
     const newRoot = closePanelHelper(layout.root, nodeId);
-    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this.layouts = {
+      ...this.layouts,
+      [layout.id]: { ...layout, root: newRoot }
+    };
     if (this.activePanelId === nodeId) this.activePanelId = null;
     this._debouncedSave();
   }
 
   closePanelInWorkspace(workspaceId: string, nodeId: string): void {
-    const ws = this.workspaces.find((w) => w.id === workspaceId);
+    const ws = this.workspaces.find(w => w.id === workspaceId);
     if (!ws?.layoutId) return;
     const layout = this.layouts[ws.layoutId];
     if (!layout) return;
     const newRoot = closePanelHelper(layout.root, nodeId);
-    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this.layouts = {
+      ...this.layouts,
+      [layout.id]: { ...layout, root: newRoot }
+    };
     if (this.activePanelId === nodeId) this.activePanelId = null;
-    this.saveLayout(workspaceId, newRoot).catch((err) => {
+    this.saveLayout(workspaceId, newRoot).catch(err => {
       console.error('[WorkspaceStore] closePanelInWorkspace save failed:', err);
     });
   }
@@ -190,7 +205,11 @@ export class WorkspaceStore {
     this.dragHoverSide = side;
   }
 
-  dropWidget(targetId: string, side: DropSide, sourceIdFromDrop: string | null = null): void {
+  dropWidget(
+    targetId: string,
+    side: DropSide,
+    sourceIdFromDrop: string | null = null
+  ): void {
     const sourceId = sourceIdFromDrop ?? this.draggingWidgetId;
     if (!sourceId || sourceId === targetId) {
       this.draggingWidgetId = null;
@@ -202,7 +221,10 @@ export class WorkspaceStore {
       return;
     }
     const newRoot = moveWidgetNodeHelper(layout.root, sourceId, targetId, side);
-    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this.layouts = {
+      ...this.layouts,
+      [layout.id]: { ...layout, root: newRoot }
+    };
     this.draggingWidgetId = null;
     this.dragHoverTargetId = null;
     this.dragHoverSide = null;
@@ -212,8 +234,10 @@ export class WorkspaceStore {
   reorderWorkspaces(newOrder: Workspace[]): void {
     this.workspaces = [...newOrder];
     try {
-      localStorage.setItem('ws-order', JSON.stringify(newOrder.map((w) => w.id)));
-    } catch { /* ignore */ }
+      localStorage.setItem('ws-order', JSON.stringify(newOrder.map(w => w.id)));
+    } catch {
+      /* ignore */
+    }
   }
 
   updateWidgetConfig(nodeId: string, config: Record<string, unknown>): void {
@@ -222,7 +246,10 @@ export class WorkspaceStore {
     // Nœud supprimé (ex: onDestroy async du terminal après closePanel) → skip
     if (!nodeExists(layout.root, nodeId)) return;
     const newRoot = updateNodeConfigHelper(layout.root, nodeId, config);
-    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this.layouts = {
+      ...this.layouts,
+      [layout.id]: { ...layout, root: newRoot }
+    };
     this._debouncedSave();
   }
 
@@ -233,11 +260,18 @@ export class WorkspaceStore {
     const current = findPanelById(layout.root, nodeId);
     if (!current) return;
     // Epsilon guard : bruit flottant de paneforge
-    if (current.sizes.length === sizes.length && current.sizes.every((s, i) => Math.abs(s - sizes[i]) < 0.01)) return;
+    if (
+      current.sizes.length === sizes.length &&
+      current.sizes.every((s, i) => Math.abs(s - sizes[i]) < 0.01)
+    )
+      return;
     const newRoot = updatePanelSizesHelper(layout.root, nodeId, sizes);
     // Partage structurel : si rien n'a changé dans l'arbre, ne pas re-déclencher Svelte
-    if (newRoot === layout.root) return;
-    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    if (newRoot.id === layout.root.id) return;
+    this.layouts = {
+      ...this.layouts,
+      [layout.id]: { ...layout, root: newRoot }
+    };
     this._debouncedSave();
   }
 
@@ -250,19 +284,25 @@ export class WorkspaceStore {
     const layout = this.activeLayout;
     if (!layout) return;
     const newRoot = updateWidgetLabelHelper(layout.root, nodeId, label);
-    this.layouts = { ...this.layouts, [layout.id]: { ...layout, root: newRoot } };
+    this.layouts = {
+      ...this.layouts,
+      [layout.id]: { ...layout, root: newRoot }
+    };
     this._debouncedSave();
   }
 
   async renameWorkspace(workspaceId: string, name: string): Promise<void> {
-    this.workspaces = this.workspaces.map((w) =>
+    this.workspaces = this.workspaces.map(w =>
       w.id === workspaceId ? { ...w, name } : w
     );
-    await this.db!.execute('UPDATE workspaces SET name = ? WHERE id = ?', [name, workspaceId]);
+    await this.db!.execute('UPDATE workspaces SET name = ? WHERE id = ?', [
+      name,
+      workspaceId
+    ]);
   }
 
   async closeWorkspace(workspaceId: string): Promise<void> {
-    const ws = this.workspaces.find((w) => w.id === workspaceId);
+    const ws = this.workspaces.find(w => w.id === workspaceId);
     if (!ws) return;
 
     if (ws.layoutId) {
@@ -271,9 +311,11 @@ export class WorkspaceStore {
       await this.db!.execute('DELETE FROM layouts WHERE id = ?', [ws.layoutId]);
     }
 
-    this.workspaces = this.workspaces.filter((w) => w.id !== workspaceId);
+    this.workspaces = this.workspaces.filter(w => w.id !== workspaceId);
     if (this.activeWorkspaceId === workspaceId) this.activeWorkspaceId = null;
-    await this.db!.execute('DELETE FROM workspaces WHERE id = ?', [workspaceId]);
+    await this.db!.execute('DELETE FROM workspaces WHERE id = ?', [
+      workspaceId
+    ]);
   }
 
   private _debouncedSave(): void {
@@ -282,14 +324,14 @@ export class WorkspaceStore {
       this._saveTimer = null;
       const layout = this.activeLayout;
       if (!layout || !this.activeWorkspaceId || !this.db) return;
-      await this.saveLayout(this.activeWorkspaceId, layout.root).catch((err) => {
+      await this.saveLayout(this.activeWorkspaceId, layout.root).catch(err => {
         console.error('[WorkspaceStore] saveLayout failed:', err);
       });
     }, 1000);
   }
 
   async saveLayout(workspaceId: string, root: Panel): Promise<void> {
-    const ws = this.workspaces.find((w) => w.id === workspaceId);
+    const ws = this.workspaces.find(w => w.id === workspaceId);
     if (!ws) return;
 
     const config = JSON.stringify(root);
@@ -303,7 +345,7 @@ export class WorkspaceStore {
 
     const layout: Layout = { id: layoutId, workspaceId, root };
     this.layouts = { ...this.layouts, [layoutId]: layout };
-    this.workspaces = this.workspaces.map((w) =>
+    this.workspaces = this.workspaces.map(w =>
       w.id === workspaceId ? { ...w, layoutId } : w
     );
   }
