@@ -1,6 +1,10 @@
 import { isPanel } from './types';
 import type { Panel, PanelNode, Widget, WidgetType } from './types';
 
+function equalSizes(n: number): number[] {
+  return Array(n).fill(100 / n);
+}
+
 function mapNode(
   panel: Panel,
   targetId: string,
@@ -26,7 +30,7 @@ function removeNode(panel: Panel, targetId: string): Panel {
     }
     return [child];
   });
-  return { ...panel, children: newChildren };
+  return { ...panel, children: newChildren, sizes: equalSizes(newChildren.length) };
 }
 
 export function splitPanel(
@@ -37,7 +41,7 @@ export function splitPanel(
   return mapNode(root, targetId, (node) => ({
     id: crypto.randomUUID(),
     direction,
-    sizes: [50, 50],
+    sizes: equalSizes(2),
     children: [node, { id: crypto.randomUUID(), type: 'empty' as const, config: {} }],
   }));
 }
@@ -187,7 +191,7 @@ export function moveWidgetNode(root: Panel, sourceId: string, targetId: string, 
   return mapNode(withoutSource, targetId, (target) => ({
     id: crypto.randomUUID(),
     direction,
-    sizes: [50, 50],
+    sizes: equalSizes(2),
     children: sourceFirst ? [movedWidget, target] : [target, movedWidget],
   } as Panel));
 }

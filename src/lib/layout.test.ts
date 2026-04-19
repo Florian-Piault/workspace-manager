@@ -30,6 +30,15 @@ describe('splitPanel', () => {
     expect((inner.children[1] as Widget).type).toBe('empty');
   });
 
+  it('initialise les sizes à 50/50 (1/n)', () => {
+    const root = p('root', [w('w1')]);
+    const result = splitPanel(root, 'w1', 'vertical');
+    const inner = result.children[0] as Panel;
+    expect(inner.sizes).toHaveLength(2);
+    expect(inner.sizes[0]).toBeCloseTo(50);
+    expect(inner.sizes[1]).toBeCloseTo(50);
+  });
+
   it('works on a nested target', () => {
     const inner = p('inner', [w('w1'), w('w2')]);
     const root = p('root', [inner, w('w3')]);
@@ -49,6 +58,23 @@ describe('closePanel', () => {
 
     expect(result.children).toHaveLength(1);
     expect(result.children[0].id).toBe('a');
+  });
+
+  it('redistribue les sizes en 1/n après suppression', () => {
+    const root = p('root', [w('a'), w('b'), w('c')]);
+    const result = closePanel(root, 'c');
+
+    expect(result.sizes).toHaveLength(2);
+    expect(result.sizes[0]).toBeCloseTo(50);
+    expect(result.sizes[1]).toBeCloseTo(50);
+  });
+
+  it('redistribue à 1/n même si les sizes initiales étaient inégales', () => {
+    const root: Panel = { id: 'root', direction: 'horizontal', sizes: [30, 40, 30], children: [w('a'), w('b'), w('c')] };
+    const result = closePanel(root, 'c');
+
+    expect(result.sizes[0]).toBeCloseTo(50);
+    expect(result.sizes[1]).toBeCloseTo(50);
   });
 
   it('collapses parent when only 1 child remains after removal', () => {
