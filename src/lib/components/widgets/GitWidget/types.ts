@@ -32,6 +32,7 @@ export interface CommitInfo {
   author_name: string;
   timestamp: number;
   refs: string[];
+  parent_count: number;
 }
 
 export interface OpResult {

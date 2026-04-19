@@ -91,6 +91,10 @@ pub fn git_diff_file(path: String, file: String, staged: bool) -> Result<String,
 
     let mut patch = String::new();
     diff.print(DiffFormat::Patch, |_, _, line| {
+        match line.origin() {
+            '+' | '-' | ' ' | '\\' => patch.push(line.origin()),
+            _ => {}
+        }
         if let Ok(s) = std::str::from_utf8(line.content()) {
             patch.push_str(s);
         }
@@ -232,6 +236,7 @@ pub struct CommitInfo {
     pub author_name: String,
     pub timestamp: i64,
     pub refs: Vec<String>,
+    pub parent_count: usize,
 }
 
 #[tauri::command]
@@ -262,6 +267,7 @@ pub fn git_log(path: String, limit: usize) -> Result<Vec<CommitInfo>, String> {
             author_name: commit.author().name().unwrap_or("").to_string(),
             timestamp: commit.time().seconds(),
             refs: ref_map.remove(&oid).unwrap_or_default(),
+            parent_count: commit.parent_count(),
             hash,
         });
     }
