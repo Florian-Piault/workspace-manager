@@ -12,20 +12,24 @@
 
   onMount(() => {
     theme.init();
-    settings.init().catch((err) => {
+    settings.init().catch(err => {
       console.error('[Settings] init failed:', err);
     });
-    await terminalHistory.init().catch((err) => {
+    terminalHistory.init().catch(err => {
       console.error('[TerminalHistory] init failed:', err);
     });
-    
+
     // Un seul listener global pour tous les raccourcis configurables.
     return installGlobalKeybindMatcher();
   });
 </script>
 
-<div class="flex h-screen w-screen overflow-hidden bg-background text-foreground
-            {settings.general.sidebarPosition === 'right' ? 'flex-row-reverse' : ''}">
+<div
+  class="flex h-screen w-screen overflow-hidden bg-background text-foreground
+            {settings.general.sidebarPosition === 'right'
+    ? 'flex-row-reverse'
+    : ''}"
+>
   <Sidebar />
   <main class="relative flex-1 overflow-hidden">
     {@render children()}

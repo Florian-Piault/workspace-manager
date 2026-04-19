@@ -5,8 +5,15 @@ Application **bureau** pour regrouper projets et outils dans des **workspaces** 
 ## Fonctionnalités
 
 - **Workspaces** liés à un dossier sur disque, gestion depuis une barre latérale.
-- **Grille de panneaux** (split horizontal / vertical, fermeture) avec raccourcis clavier (`⌘/Ctrl+\`, `⌘/Ctrl+-`, `⌘/Ctrl+W` sur le panneau actif).
-- **Widgets** : navigateur intégré, éditeur (CodeMirror : JS, JSON, Markdown, Rust…), terminal (PTY côté Tauri).
+- **Grille de panneaux** (split horizontal / vertical, fermeture) avec raccourcis clavier (`⌘/Ctrl+\`, `⌘/Ctrl+-`, `⌘/Ctrl+W` sur le panneau actif) et **drag & drop** pour réorganiser les widgets.
+- **Widgets** :
+  - Navigateur intégré
+  - Éditeur de code (CodeMirror : JS, JSON, Markdown, Rust…) avec **switcher de prévisualisation contextuel**
+  - Explorateur de fichiers avec arborescence (affichage des fichiers cachés, filtres d'exclusion, toggle de l'arbre)
+  - Terminal (PTY côté Tauri) avec **choix du terminal par défaut** et **historique de commandes persistant** par workspace
+- **Gestion de fichiers** : créer, supprimer et renommer des fichiers et répertoires directement depuis l'interface.
+- **Palette rapide** (`⌘/Ctrl+P`) pour naviguer entre workspaces et widgets avec filtrage instantané.
+- **Raccourcis clavier** style VSCode : combinaisons et séquences chord configurables.
 - **Données** stockées dans une base SQLite embarquée (`workspace.db`).
 
 ## Stack technique
