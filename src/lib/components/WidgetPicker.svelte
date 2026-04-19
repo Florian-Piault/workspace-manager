@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { TextAlignStart, Terminal, Globe, Zap, X } from '@lucide/svelte';
+  import { TextAlignStart, Terminal, Globe, Zap, GitBranch, X } from '@lucide/svelte';
   import { store } from '$lib/state.svelte';
   import type { WidgetType } from '$lib/types';
   import type { Snippet } from 'svelte';
@@ -14,7 +14,8 @@
     { type: 'code', label: 'Code Editor', icon: TextAlignStart },
     { type: 'terminal', label: 'Terminal', icon: Terminal },
     { type: 'browser', label: 'Browser', icon: Globe },
-    { type: 'actions', label: 'Quick Actions', icon: Zap }
+    { type: 'actions', label: 'Quick Actions', icon: Zap },
+    { type: 'git', label: 'Git', icon: GitBranch }
   ];
 </script>
 

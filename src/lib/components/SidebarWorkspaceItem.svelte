@@ -7,7 +7,8 @@
     Terminal,
     TextAlignStart,
     Globe,
-    Zap
+    Zap,
+    GitBranch
   } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { store } from '$lib/state.svelte';
@@ -174,6 +175,12 @@
                 />
               {:else if widget.type === 'actions'}
                 <Zap
+                  class="h-3 w-3 {store.activePanelId === widget.id
+                    ? 'text-foreground'
+                    : 'text-muted-foreground'}"
+                />
+              {:else if widget.type === 'git'}
+                <GitBranch
                   class="h-3 w-3 {store.activePanelId === widget.id
                     ? 'text-foreground'
                     : 'text-muted-foreground'}"

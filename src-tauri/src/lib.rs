@@ -3,6 +3,7 @@ mod fs;
 mod browser;
 mod quick_actions;
 mod scan_engine;
+mod git;
 
 use pty::PtyManager;
 use quick_actions::ProcessManager;
@@ -73,6 +74,19 @@ pub fn run() {
             quick_actions::qa_execute,
             quick_actions::qa_kill,
             scan_engine::scan_workspace_actions,
+            git::git_status,
+            git::git_diff_file,
+            git::git_stage,
+            git::git_unstage,
+            git::git_commit,
+            git::git_branches,
+            git::git_checkout,
+            git::git_create_branch,
+            git::git_delete_branch,
+            git::git_push,
+            git::git_pull,
+            git::git_fetch,
+            git::git_ahead_behind,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
