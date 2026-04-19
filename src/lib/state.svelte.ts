@@ -1,4 +1,5 @@
 import Database from '@tauri-apps/plugin-sql';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { Workspace, Layout, Panel, WidgetType } from './types';
 import {
   splitPanel as splitPanelHelper,
@@ -21,13 +22,18 @@ export class WorkspaceStore {
   activeWorkspaceId = $state<string | null>(null);
   activePanelId = $state<string | null>(null);
   layouts = $state<Record<string, Layout>>({});
-  savingWidgets = $state<Set<string>>(new Set());
-  dirtyWidgets = $state<Set<string>>(new Set());
+  // SvelteSet/SvelteMap provide per-key reactivity: `.has(id)` / `.get(id)` only
+  // invalidate subscribers when that specific id's membership/value changes,
+  // instead of on every reassignment of the whole collection. This keeps the
+  // widget tree / sidebar from re-rendering every row when one widget flips
+  // saving/dirty state.
+  savingWidgets = new SvelteSet<string>();
+  dirtyWidgets = new SvelteSet<string>();
   maximizedPanelId = $state<string | null>(null);
   draggingWidgetId = $state<string | null>(null);
   dragHoverTargetId = $state<string | null>(null);
   dragHoverSide = $state<DropSide | null>(null);
-  autoLabels = $state<Map<string, string>>(new Map());
+  autoLabels = new SvelteMap<string, string>();
 
   activeWorkspace = $derived(
     this.workspaces.find((w) => w.id === this.activeWorkspaceId) ?? null
@@ -154,17 +160,13 @@ export class WorkspaceStore {
   }
 
   setSaving(nodeId: string, saving: boolean): void {
-    const next = new Set(this.savingWidgets);
-    if (saving) next.add(nodeId);
-    else next.delete(nodeId);
-    this.savingWidgets = next;
+    if (saving) this.savingWidgets.add(nodeId);
+    else this.savingWidgets.delete(nodeId);
   }
 
   setDirty(nodeId: string, dirty: boolean): void {
-    const next = new Set(this.dirtyWidgets);
-    if (dirty) next.add(nodeId);
-    else next.delete(nodeId);
-    this.dirtyWidgets = next;
+    if (dirty) this.dirtyWidgets.add(nodeId);
+    else this.dirtyWidgets.delete(nodeId);
   }
 
   toggleMaximize(nodeId: string): void {
@@ -240,10 +242,8 @@ export class WorkspaceStore {
   }
 
   setAutoLabel(nodeId: string, label: string): void {
-    const next = new Map(this.autoLabels);
-    if (label) next.set(nodeId, label);
-    else next.delete(nodeId);
-    this.autoLabels = next;
+    if (label) this.autoLabels.set(nodeId, label);
+    else this.autoLabels.delete(nodeId);
   }
 
   updateWidgetLabel(nodeId: string, label: string): void {
