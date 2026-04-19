@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Settings, PanelLeftClose, PanelLeftOpen } from '@lucide/svelte';
+  import { Settings, PanelLeftClose, PanelLeftOpen, FileCode, Eye } from '@lucide/svelte';
   import type { Snippet } from 'svelte';
   import * as Select from '$lib/components/ui/select';
   import * as Popover from '$lib/components/ui/popover';
@@ -31,7 +31,10 @@
     onToggleTree,
     onSetLanguageOverride,
     onSetOverride,
-    onResetOverrides
+    onResetOverrides,
+    viewMode,
+    hasPreview,
+    onToggleViewMode
   }: {
     fileName: string | null;
     activeLang: string;
@@ -52,10 +55,13 @@
     effShowHiddenFiles: boolean;
     effExcludePatterns: string[];
     pillControls?: Snippet;
+    viewMode: 'code' | 'preview';
+    hasPreview: boolean;
     onToggleTree: () => void;
     onSetLanguageOverride: (lang: string) => void;
     onSetOverride: (key: keyof typeof settings.editor, value: never) => void;
     onResetOverrides: () => void;
+    onToggleViewMode: () => void;
   } = $props();
 </script>
 
@@ -120,6 +126,24 @@
       Aucun fichier
     {/if}
   </span>
+
+  <!-- View mode toggle: visible only when the active file has a preview renderer -->
+  {#if hasPreview}
+    <button
+      onclick={onToggleViewMode}
+      class="shrink-0 rounded p-1 transition-colors
+             {viewMode === 'preview'
+               ? 'bg-primary/15 text-primary hover:bg-primary/25'
+               : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'}"
+      title={viewMode === 'preview' ? 'Afficher le code source' : 'Afficher la prévisualisation'}
+    >
+      {#if viewMode === 'preview'}
+        <FileCode class="h-3.5 w-3.5" />
+      {:else}
+        <Eye class="h-3.5 w-3.5" />
+      {/if}
+    </button>
+  {/if}
 
   {#if pillControls}
     <div class="ml-1 shrink-0 border-l border-border pl-1">
