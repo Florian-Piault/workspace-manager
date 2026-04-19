@@ -146,7 +146,7 @@
     // Afficher l'historique des commandes dans le terminal si session fraîche
     const wsId = store.activeWorkspaceId ?? '';
     if (wsId && !scrollbackSrc) {
-      const history = await terminalHistory.load(wsId);
+      const history = await terminalHistory.load(wsId, nodeId);
       if (history.length > 0) {
         const recent = [...history].reverse();
         terminal.write('\x1b[33m--- Historique de la session précédente ---\x1b[0m\r\n');
@@ -186,6 +186,7 @@
         } catch {
           // ignorer les erreurs à la fermeture
         }
+        terminalHistory.delete(nodeId).catch(() => {});
       }
     }
     terminal?.dispose();

@@ -17,35 +17,35 @@ type DbRow = {
 };
 
 class TerminalHistoryStore {
-  entries = $state<HistoryEntry[]>([]);
+  private entriesByWidget = $state<Map<string, HistoryEntry[]>>(new Map());
   private db: Database | null = null;
-  private loadedWorkspace: string | null = null;
 
   async init() {
     this.db = await Database.load('sqlite:workspace.db');
   }
 
-  async load(workspaceId: string): Promise<HistoryEntry[]> {
+  async load(workspaceId: string, widgetId: string): Promise<HistoryEntry[]> {
     if (!this.db) return [];
-    if (this.loadedWorkspace === workspaceId) return this.entries;
-    this.loadedWorkspace = workspaceId;
+    if (this.entriesByWidget.has(widgetId)) return this.entriesByWidget.get(widgetId)!;
     const rows = await this.db.select<DbRow[]>(
-      'SELECT * FROM terminal_history WHERE workspace_id = ? ORDER BY timestamp DESC LIMIT 50',
-      [workspaceId]
+      'SELECT * FROM terminal_history WHERE workspace_id = ? AND widget_id = ? ORDER BY timestamp DESC LIMIT 50',
+      [workspaceId, widgetId]
     );
-    this.entries = rows.map((r) => ({
+    const entries = rows.map((r) => ({
       id: r.id,
       workspaceId: r.workspace_id,
       widgetId: r.widget_id,
       command: r.command,
       timestamp: r.timestamp,
     }));
-    return this.entries;
+    this.entriesByWidget.set(widgetId, entries);
+    return entries;
   }
 
   async add(workspaceId: string, widgetId: string, command: string) {
     if (!this.db || !command.trim()) return;
-    if (this.entries[0]?.command === command) return; // dédupliquer consécutifs
+    const current = this.entriesByWidget.get(widgetId) ?? [];
+    if (current[0]?.command === command) return; // dédupliquer consécutifs par widget
     const entry: HistoryEntry = {
       id: crypto.randomUUID(),
       workspaceId,
@@ -55,9 +55,15 @@ class TerminalHistoryStore {
     };
     await this.db.execute(
       'INSERT INTO terminal_history (id, workspace_id, widget_id, command, timestamp) VALUES (?, ?, ?, ?, ?)',
-      [entry.id, workspaceId, widgetId, command, entry.timestamp]
+      [entry.id, workspaceId, widgetId, entry.command, entry.timestamp]
     );
-    this.entries = [entry, ...this.entries].slice(0, 50);
+    this.entriesByWidget.set(widgetId, [entry, ...current].slice(0, 50));
+  }
+
+  async delete(widgetId: string) {
+    if (!this.db) return;
+    await this.db.execute('DELETE FROM terminal_history WHERE widget_id = ?', [widgetId]);
+    this.entriesByWidget.delete(widgetId);
   }
 }
 
