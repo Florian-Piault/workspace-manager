@@ -35,6 +35,32 @@ export interface CommitInfo {
   parent_count: number;
 }
 
+export interface GraphRefInfo {
+  name: string;
+  kind: 'head' | 'local' | 'remote' | 'tag' | 'other';
+  checkout_target?: string;
+}
+
+export interface GraphLine {
+  from_lane: number;
+  to_lane: number;
+  kind: 'vertical' | 'fork' | 'merge' | 'horizontal';
+}
+
+export interface GraphCommitInfo {
+  hash: string;
+  short_hash: string;
+  message: string;
+  author_name: string;
+  timestamp: number;
+  refs: GraphRefInfo[];
+  parent_count: number;
+  parent_hashes: string[];
+  lane: number;
+  node_kind: 'commit' | 'merge' | 'head';
+  lines: GraphLine[];
+}
+
 export interface OpResult {
   op: string;
   output: string;

@@ -91,6 +91,7 @@ pub fn run() {
             git::git_fetch,
             git::git_ahead_behind,
             git::git_log,
+            git::git_graph,
             git::git_delete_remote_branch,
         ])
         .run(tauri::generate_context!())

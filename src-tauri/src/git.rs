@@ -429,6 +429,12 @@ pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<Gr
 }
 
 #[tauri::command]
+pub fn git_graph(path: String, limit: usize) -> Result<Vec<GraphCommitInfo>, String> {
+    let repo = open_repo(&path)?;
+    build_graph_rows(&repo, limit)
+}
+
+#[tauri::command]
 pub fn git_log(path: String, limit: usize) -> Result<Vec<CommitInfo>, String> {
     let repo = open_repo(&path)?;
 
