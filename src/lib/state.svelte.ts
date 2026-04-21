@@ -256,22 +256,23 @@ export class WorkspaceStore {
   updatePanelSizes(nodeId: string, sizes: number[]): void {
     const layout = this.activeLayout;
     if (!layout) return;
-    // Nœud absent (panel collapsé après removeNode) → skip
+
     const current = findPanelById(layout.root, nodeId);
     if (!current) return;
-    // Epsilon guard : bruit flottant de paneforge
+
+    // Epsilon guard conservé pour absorber le bruit flottant
     if (
       current.sizes.length === sizes.length &&
       current.sizes.every((s, i) => Math.abs(s - sizes[i]) < 0.01)
-    )
+    ) {
       return;
-    const newRoot = updatePanelSizesHelper(layout.root, nodeId, sizes);
-    // Partage structurel : si rien n'a changé dans l'arbre, ne pas re-déclencher Svelte
-    if (newRoot.id === layout.root.id) return;
-    this.layouts = {
-      ...this.layouts,
-      [layout.id]: { ...layout, root: newRoot }
-    };
+    }
+
+    // Mutation directe : Svelte 5 intercepte cette modification via Proxy.
+    // Cela déclenche une mise à jour granulaire sans altérer la référence
+    // de l'arbre racine, évitant ainsi la boucle infinie du composant visuel.
+    current.sizes = sizes;
+
     this._debouncedSave();
   }
 
