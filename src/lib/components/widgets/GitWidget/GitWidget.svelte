@@ -11,7 +11,7 @@
   import GitBranchPanel from './GitBranchPanel.svelte';
   import GitCommitArea from './GitCommitArea.svelte';
   import GitHistoryView from './GitHistoryView.svelte';
-  import type { GitStatus, BranchInfo, AheadBehind, SelectedFile, CommitInfo, OpResult } from './types';
+  import type { GitStatus, BranchInfo, AheadBehind, SelectedFile, GraphCommitInfo, OpResult } from './types';
 
   let { config, nodeId, pillControls }: {
     config: Record<string, unknown>;
@@ -32,7 +32,7 @@
   let gitStatus = $state<GitStatus>({ staged: [], unstaged: [], untracked: [] });
   let branches = $state<BranchInfo[]>([]);
   let aheadBehind = $state<AheadBehind>({ ahead: 0, behind: 0 });
-  let commits = $state<CommitInfo[]>([]);
+  let graphCommits = $state<GraphCommitInfo[]>([]);
   let selectedFile = $state<SelectedFile | null>(null);
   let diffContent = $state<string | null>(null);
 
@@ -74,13 +74,16 @@
     }
   }
 
-  async function loadHistory() {
+  async function loadGraphHistory() {
     if (!workspacePath) return;
     historyLoading = true;
     try {
-      commits = await invoke<CommitInfo[]>('git_log', { path: workspacePath, limit: 100 });
-    } catch { commits = []; }
-    finally { historyLoading = false; }
+      graphCommits = await invoke<GraphCommitInfo[]>('git_graph', { path: workspacePath, limit: 150 });
+    } catch {
+      graphCommits = [];
+    } finally {
+      historyLoading = false;
+    }
   }
 
   async function loadDiff(path: string, staged: boolean) {
@@ -141,7 +144,7 @@
       selectedFile = null;
       diffContent = null;
       await loadStatus();
-      if (mainView === 'history') await loadHistory();
+      if (mainView === 'history') await loadGraphHistory();
     } catch (e) { error = String(e); }
   }
 
@@ -150,6 +153,7 @@
     try {
       await invoke('git_checkout', { path: workspacePath, branch });
       await loadStatus();
+      if (mainView === 'history') await loadGraphHistory();
     } catch (e) { error = String(e); }
   }
 
@@ -158,6 +162,7 @@
     try {
       await invoke('git_create_branch', { path: workspacePath, name });
       await loadStatus();
+      if (mainView === 'history') await loadGraphHistory();
     } catch (e) { error = String(e); }
   }
 
@@ -166,6 +171,7 @@
     try {
       await invoke('git_delete_branch', { path: workspacePath, name });
       await loadStatus();
+      if (mainView === 'history') await loadGraphHistory();
     } catch (e) { error = String(e); }
   }
 
@@ -177,6 +183,7 @@
       });
       showOpResult('push', output || `Branche ${remote}/${branch} supprimée`, true);
       await loadStatus();
+      if (mainView === 'history') await loadGraphHistory();
     } catch (e) { error = String(e); }
   }
 
@@ -191,7 +198,7 @@
     try {
       const output = await fn();
       await loadStatus();
-      if (mainView === 'history') await loadHistory();
+      if (mainView === 'history') await loadGraphHistory();
       showOpResult(op, output || 'OK', true);
     } catch (e) {
       error = String(e);
@@ -200,10 +207,10 @@
     }
   }
 
-  // Load history when switching to that view
+  // Load graph history when switching to that view
   $effect(() => {
-    if (mainView === 'history' && workspacePath && commits.length === 0) {
-      loadHistory();
+    if (mainView === 'history' && workspacePath && graphCommits.length === 0) {
+      loadGraphHistory();
     }
   });
 
@@ -228,7 +235,7 @@
       noRepo = false;
       selectedFile = null;
       diffContent = null;
-      commits = [];
+      graphCommits = [];
       loadStatus();
     }
   });
@@ -325,7 +332,7 @@
         {/if}
       </button>
       <button
-        onclick={() => { mainView = 'history'; if (commits.length === 0) loadHistory(); }}
+        onclick={() => { mainView = 'history'; if (graphCommits.length === 0) loadGraphHistory(); }}
         class="rounded px-2 py-0.5 text-[11px] transition-colors
                {mainView === 'history'
                  ? 'bg-background text-foreground font-medium shadow-sm border border-border/60'
@@ -337,7 +344,7 @@
 
     <!-- History view -->
     {#if mainView === 'history'}
-      <GitHistoryView {commits} loading={historyLoading} />
+      <GitHistoryView commits={graphCommits} loading={historyLoading} />
 
     <!-- Changes view -->
     {:else if narrowMode}

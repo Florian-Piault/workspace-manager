@@ -1,12 +1,12 @@
 <script lang="ts">
   import { GitCommit, Loader2 } from '@lucide/svelte';
-  import type { CommitInfo } from './types';
+  import type { GraphCommitInfo, GraphRefInfo } from './types';
 
   let {
     commits,
     loading
   }: {
-    commits: CommitInfo[];
+    commits: GraphCommitInfo[];
     loading: boolean;
   } = $props();
 
@@ -33,9 +33,10 @@
     });
   }
 
-  function refClass(ref: string): string {
-    if (ref === 'HEAD') return 'bg-accent text-accent-foreground';
-    if (ref.startsWith('origin/')) return 'bg-muted text-muted-foreground';
+  function refClass(ref: GraphRefInfo): string {
+    if (ref.kind === 'head') return 'bg-accent text-accent-foreground';
+    if (ref.kind === 'remote') return 'bg-muted text-muted-foreground';
+    if (ref.kind === 'tag') return 'bg-secondary text-secondary-foreground';
     return 'bg-primary/15 text-primary';
   }
 </script>
@@ -90,7 +91,7 @@
               <div class="flex shrink-0 items-center gap-1">
                 {#each commit.refs as ref}
                   <span class="rounded px-1 py-0.5 font-mono text-[9px] font-medium {refClass(ref)}">
-                    {ref}
+                    {ref.name}
                   </span>
                 {/each}
               </div>
