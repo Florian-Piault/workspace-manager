@@ -85,6 +85,7 @@ pub fn run() {
             git::git_branches,
             git::git_checkout,
             git::git_create_branch,
+            git::git_create_branch_from_commit,
             git::git_delete_branch,
             git::git_push,
             git::git_pull,

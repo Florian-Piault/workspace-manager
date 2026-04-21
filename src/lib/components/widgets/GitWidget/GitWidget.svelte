@@ -157,6 +157,10 @@
     } catch (e) { error = String(e); }
   }
 
+  async function checkoutRef(target: string) {
+    await checkout(target);
+  }
+
   async function createBranch(name: string) {
     if (!workspacePath) return;
     try {
@@ -185,6 +189,36 @@
       await loadStatus();
       if (mainView === 'history') await loadGraphHistory();
     } catch (e) { error = String(e); }
+  }
+
+  async function copyHash(hash: string) {
+    try {
+      await navigator.clipboard.writeText(hash);
+      showOpResult('copy', hash, true);
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  async function createBranchFromCommit(hash: string) {
+    if (!workspacePath) return;
+
+    const name = window.prompt('Nom de la branche ?');
+    const trimmedName = name?.trim();
+    if (!trimmedName) return;
+
+    try {
+      await invoke('git_create_branch_from_commit', {
+        path: workspacePath,
+        name: trimmedName,
+        commit: hash
+      });
+      await loadStatus();
+      if (mainView === 'history') await loadGraphHistory();
+      showOpResult('branch', `Branche ${trimmedName} créée depuis ${hash.slice(0, 7)}`, true);
+    } catch (e) {
+      error = String(e);
+    }
   }
 
   function showOpResult(op: string, output: string, success: boolean) {
@@ -344,7 +378,13 @@
 
     <!-- History view -->
     {#if mainView === 'history'}
-      <GitHistoryView commits={graphCommits} loading={historyLoading} />
+      <GitHistoryView
+        commits={graphCommits}
+        loading={historyLoading}
+        onCheckoutRef={checkoutRef}
+        onCopyHash={copyHash}
+        onCreateBranchFromCommit={createBranchFromCommit}
+      />
 
     <!-- Changes view -->
     {:else if narrowMode}

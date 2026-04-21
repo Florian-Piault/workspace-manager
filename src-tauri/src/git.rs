@@ -205,6 +205,15 @@ pub fn git_create_branch(path: String, name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn git_create_branch_from_commit(path: String, name: String, commit: String) -> Result<(), String> {
+    let repo = open_repo(&path)?;
+    let oid = git2::Oid::from_str(&commit).map_err(git_err)?;
+    let commit = repo.find_commit(oid).map_err(git_err)?;
+    repo.branch(&name, &commit, false).map_err(git_err)?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn git_delete_branch(path: String, name: String) -> Result<(), String> {
     let repo = open_repo(&path)?;
     repo.find_branch(&name, BranchType::Local)

@@ -1,5 +1,5 @@
 import '@testing-library/svelte/vitest';
-import { render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, it, expect, vi } from 'vitest';
 import GitHistoryView from './GitHistoryView.svelte';
 import type { GraphCommitInfo } from './types';
@@ -61,6 +61,29 @@ describe('GitHistoryView graph', () => {
     expect(screen.getByRole('button', { name: /checkout main/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /copy hash abcdef1/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /create branch from abcdef1/i })).toBeTruthy();
+  });
+
+  it('invokes graph action callbacks with the expected payloads', async () => {
+    const onCheckoutRef = vi.fn(async () => {});
+    const onCopyHash = vi.fn();
+    const onCreateBranchFromCommit = vi.fn(async () => {});
+
+    render(GitHistoryView, {
+      commits: [makeCommit({ refs: [{ name: 'main', kind: 'local', checkout_target: 'main' }] })],
+      loading: false,
+      onCheckoutRef,
+      onCopyHash,
+      onCreateBranchFromCommit
+    });
+
+    await fireEvent.click(screen.getByRole('button', { name: /checkout main/i }));
+    expect(onCheckoutRef).toHaveBeenCalledWith('main');
+
+    await fireEvent.click(screen.getByRole('button', { name: /copy hash abcdef1/i }));
+    expect(onCopyHash).toHaveBeenCalledWith('abcdef1234567890');
+
+    await fireEvent.click(screen.getByRole('button', { name: /create branch from abcdef1/i }));
+    expect(onCreateBranchFromCommit).toHaveBeenCalledWith('abcdef1234567890');
   });
 
   it('renders merge styling and merge lines', () => {
