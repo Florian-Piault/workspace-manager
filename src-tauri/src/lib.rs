@@ -5,6 +5,9 @@ mod quick_actions;
 mod scan_engine;
 mod git;
 
+#[cfg(test)]
+mod git_graph_tests;
+
 use pty::PtyManager;
 use quick_actions::ProcessManager;
 use tauri_plugin_sql::{Migration, MigrationKind};
