@@ -239,6 +239,106 @@ pub struct CommitInfo {
     pub parent_count: usize,
 }
 
+#[derive(Serialize, Clone)]
+pub struct GraphRefInfo {
+    pub name: String,
+    pub kind: String,
+    pub checkout_target: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct GraphLine {
+    pub from_lane: usize,
+    pub to_lane: usize,
+    pub kind: String,
+}
+
+#[derive(Serialize, Clone)]
+pub struct GraphCommitInfo {
+    pub hash: String,
+    pub short_hash: String,
+    pub message: String,
+    pub author_name: String,
+    pub timestamp: i64,
+    pub refs: Vec<GraphRefInfo>,
+    pub parent_count: usize,
+    pub parent_hashes: Vec<String>,
+    pub lane: usize,
+    pub node_kind: String,
+    pub lines: Vec<GraphLine>,
+}
+
+fn graph_ref_info(reference: &git2::Reference<'_>) -> Option<(git2::Oid, GraphRefInfo)> {
+    let resolved = reference.resolve().ok();
+    let target = reference.target().or_else(|| resolved.as_ref().and_then(|r| r.target()))?;
+    let name = reference.shorthand().or_else(|| resolved.as_ref().and_then(|r| r.shorthand()))?.to_string();
+    let full_name = reference.name().or_else(|| resolved.as_ref().and_then(|r| r.name())).unwrap_or("");
+
+    let (kind, checkout_target) = if full_name == "HEAD" {
+        ("head".to_string(), None)
+    } else if full_name.starts_with("refs/heads/") {
+        ("local".to_string(), Some(name.clone()))
+    } else if full_name.starts_with("refs/remotes/") {
+        ("remote".to_string(), Some(name.clone()))
+    } else if full_name.starts_with("refs/tags/") {
+        ("tag".to_string(), None)
+    } else {
+        ("other".to_string(), None)
+    };
+
+    Some((
+        target,
+        GraphRefInfo {
+            name,
+            kind,
+            checkout_target,
+        },
+    ))
+}
+
+pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<GraphCommitInfo>, String> {
+    let mut ref_map: HashMap<git2::Oid, Vec<GraphRefInfo>> = HashMap::new();
+    for reference in repo.references().map_err(git_err)? {
+        let reference = reference.map_err(git_err)?;
+        if let Some((oid, info)) = graph_ref_info(&reference) {
+            ref_map.entry(oid).or_default().push(info);
+        }
+    }
+
+    let head_oid = repo
+        .head()
+        .ok()
+        .and_then(|head| head.resolve().ok())
+        .and_then(|head| head.target());
+
+    let mut revwalk = repo.revwalk().map_err(git_err)?;
+    revwalk.push_head().map_err(git_err)?;
+    revwalk.set_sorting(git2::Sort::TIME).map_err(git_err)?;
+
+    let mut rows = Vec::new();
+    for oid in revwalk.take(limit) {
+        let oid = oid.map_err(git_err)?;
+        let commit = repo.find_commit(oid).map_err(git_err)?;
+        let hash = oid.to_string();
+        let parent_hashes = commit.parents().map(|parent| parent.id().to_string()).collect();
+        rows.push(GraphCommitInfo {
+            short_hash: hash[..7].to_string(),
+            message: commit.summary().unwrap_or("").to_string(),
+            author_name: commit.author().name().unwrap_or("").to_string(),
+            timestamp: commit.time().seconds(),
+            refs: ref_map.remove(&oid).unwrap_or_default(),
+            parent_count: commit.parent_count(),
+            parent_hashes,
+            lane: 0,
+            node_kind: if Some(oid) == head_oid { "head".to_string() } else { "commit".to_string() },
+            lines: Vec::new(),
+            hash,
+        });
+    }
+
+    Ok(rows)
+}
+
 #[tauri::command]
 pub fn git_log(path: String, limit: usize) -> Result<Vec<CommitInfo>, String> {
     let repo = open_repo(&path)?;

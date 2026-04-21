@@ -28,4 +28,10 @@ fn graph_for_single_commit_repo_returns_one_row() {
     let (_dir, repo) = make_test_repo_with_one_commit();
     let rows = crate::git::build_graph_rows(&repo, 50).unwrap();
     assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].lane, 0);
+    assert!(rows[0].parent_hashes.is_empty());
+    assert!(rows[0]
+        .refs
+        .iter()
+        .any(|r| r.kind == "local" && r.checkout_target.as_deref() == Some(&r.name)));
 }
