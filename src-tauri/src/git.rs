@@ -271,19 +271,19 @@ pub struct GraphCommitInfo {
 fn graph_ref_info(reference: &git2::Reference<'_>) -> Option<(git2::Oid, GraphRefInfo)> {
     let resolved = reference.resolve().ok();
     let target = reference.target().or_else(|| resolved.as_ref().and_then(|r| r.target()))?;
-    let name = reference.shorthand().or_else(|| resolved.as_ref().and_then(|r| r.shorthand()))?.to_string();
     let full_name = reference.name().or_else(|| resolved.as_ref().and_then(|r| r.name())).unwrap_or("");
+    let raw_name = reference.shorthand().or_else(|| resolved.as_ref().and_then(|r| r.shorthand()))?;
 
-    let (kind, checkout_target) = if full_name == "HEAD" {
-        ("head".to_string(), None)
+    let (name, kind, checkout_target) = if full_name == "HEAD" {
+        ("HEAD".to_string(), "head".to_string(), None)
     } else if full_name.starts_with("refs/heads/") {
-        ("local".to_string(), Some(name.clone()))
+        (raw_name.to_string(), "local".to_string(), Some(raw_name.to_string()))
     } else if full_name.starts_with("refs/remotes/") {
-        ("remote".to_string(), Some(name.clone()))
+        (raw_name.to_string(), "remote".to_string(), Some(raw_name.to_string()))
     } else if full_name.starts_with("refs/tags/") {
-        ("tag".to_string(), None)
+        (raw_name.to_string(), "tag".to_string(), None)
     } else {
-        ("other".to_string(), None)
+        (raw_name.to_string(), "other".to_string(), None)
     };
 
     Some((
@@ -296,12 +296,31 @@ fn graph_ref_info(reference: &git2::Reference<'_>) -> Option<(git2::Oid, GraphRe
     ))
 }
 
+fn first_free_lane(active_lanes: &mut Vec<Option<git2::Oid>>) -> usize {
+    if let Some(index) = active_lanes.iter().position(|lane| lane.is_none()) {
+        index
+    } else {
+        active_lanes.push(None);
+        active_lanes.len() - 1
+    }
+}
+
 pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<GraphCommitInfo>, String> {
     let mut ref_map: HashMap<git2::Oid, Vec<GraphRefInfo>> = HashMap::new();
     for reference in repo.references().map_err(git_err)? {
         let reference = reference.map_err(git_err)?;
         if let Some((oid, info)) = graph_ref_info(&reference) {
             ref_map.entry(oid).or_default().push(info);
+        }
+    }
+
+    if let Ok(head) = repo.head() {
+        if let Some(oid) = head.target().or_else(|| head.resolve().ok().and_then(|resolved| resolved.target())) {
+            ref_map.entry(oid).or_default().push(GraphRefInfo {
+                name: "HEAD".to_string(),
+                kind: "head".to_string(),
+                checkout_target: None,
+            });
         }
     }
 
@@ -312,15 +331,79 @@ pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<Gr
         .and_then(|head| head.target());
 
     let mut revwalk = repo.revwalk().map_err(git_err)?;
-    revwalk.push_head().map_err(git_err)?;
-    revwalk.set_sorting(git2::Sort::TIME).map_err(git_err)?;
+    let mut pushed_any = false;
+    for pattern in ["refs/heads/*", "refs/remotes/*", "refs/tags/*"] {
+        if revwalk.push_glob(pattern).is_ok() {
+            pushed_any = true;
+        }
+    }
+    if !pushed_any {
+        revwalk.push_head().map_err(git_err)?;
+    }
+    revwalk
+        .set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)
+        .map_err(git_err)?;
 
     let mut rows = Vec::new();
+    let mut active_lanes: Vec<Option<git2::Oid>> = Vec::new();
+
     for oid in revwalk.take(limit) {
         let oid = oid.map_err(git_err)?;
         let commit = repo.find_commit(oid).map_err(git_err)?;
         let hash = oid.to_string();
-        let parent_hashes = commit.parents().map(|parent| parent.id().to_string()).collect();
+        let parent_oids = commit.parents().map(|parent| parent.id()).collect::<Vec<_>>();
+        let parent_hashes = parent_oids.iter().map(|parent| parent.to_string()).collect();
+
+        let lane = if let Some(index) = active_lanes.iter().position(|candidate| *candidate == Some(oid)) {
+            index
+        } else {
+            let index = first_free_lane(&mut active_lanes);
+            active_lanes[index] = Some(oid);
+            index
+        };
+
+        let mut lines = active_lanes
+            .iter()
+            .enumerate()
+            .filter(|(index, lane_oid)| *index != lane && lane_oid.is_some())
+            .map(|(index, _)| GraphLine {
+                from_lane: index,
+                to_lane: index,
+                kind: "vertical".to_string(),
+            })
+            .collect::<Vec<_>>();
+
+        if let Some(first_parent) = parent_oids.first().copied() {
+            active_lanes[lane] = Some(first_parent);
+            lines.push(GraphLine {
+                from_lane: lane,
+                to_lane: lane,
+                kind: "vertical".to_string(),
+            });
+        } else {
+            active_lanes[lane] = None;
+        }
+
+        for parent_oid in parent_oids.iter().skip(1).copied() {
+            let target_lane = if let Some(index) = active_lanes.iter().position(|candidate| *candidate == Some(parent_oid)) {
+                index
+            } else {
+                let index = first_free_lane(&mut active_lanes);
+                active_lanes[index] = Some(parent_oid);
+                index
+            };
+
+            lines.push(GraphLine {
+                from_lane: lane,
+                to_lane: target_lane,
+                kind: "merge".to_string(),
+            });
+        }
+
+        while active_lanes.last().is_some_and(|lane| lane.is_none()) {
+            active_lanes.pop();
+        }
+
         rows.push(GraphCommitInfo {
             short_hash: hash[..7].to_string(),
             message: commit.summary().unwrap_or("").to_string(),
@@ -329,9 +412,15 @@ pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<Gr
             refs: ref_map.remove(&oid).unwrap_or_default(),
             parent_count: commit.parent_count(),
             parent_hashes,
-            lane: 0,
-            node_kind: if Some(oid) == head_oid { "head".to_string() } else { "commit".to_string() },
-            lines: Vec::new(),
+            lane,
+            node_kind: if Some(oid) == head_oid {
+                "head".to_string()
+            } else if commit.parent_count() >= 2 {
+                "merge".to_string()
+            } else {
+                "commit".to_string()
+            },
+            lines,
             hash,
         });
     }
