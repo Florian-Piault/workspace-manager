@@ -263,6 +263,14 @@ pub struct GraphLine {
 }
 
 #[derive(Serialize, Clone)]
+pub struct GraphParentLink {
+    pub parent_hash: String,
+    pub to_lane: usize,
+    pub kind: String,
+    pub direct: bool,
+}
+
+#[derive(Serialize, Clone)]
 pub struct GraphCommitInfo {
     pub hash: String,
     pub short_hash: String,
@@ -272,6 +280,7 @@ pub struct GraphCommitInfo {
     pub refs: Vec<GraphRefInfo>,
     pub parent_count: usize,
     pub parent_hashes: Vec<String>,
+    pub parent_links: Vec<GraphParentLink>,
     pub lane: usize,
     pub node_kind: String,
     pub lines: Vec<GraphLine>,
@@ -322,6 +331,18 @@ fn find_lane_with_oid(active_lanes: &[Option<git2::Oid>], oid: git2::Oid, exclud
         .map(|(index, _)| index)
 }
 
+fn push_graph_line(lines: &mut Vec<GraphLine>, from_lane: usize, to_lane: usize, kind: &str) {
+    if lines.iter().any(|line| line.from_lane == from_lane && line.to_lane == to_lane && line.kind == kind) {
+        return;
+    }
+
+    lines.push(GraphLine {
+        from_lane,
+        to_lane,
+        kind: kind.to_string(),
+    });
+}
+
 pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<GraphCommitInfo>, String> {
     let mut ref_map: HashMap<git2::Oid, Vec<GraphRefInfo>> = HashMap::new();
     for reference in repo.references().map_err(git_err)? {
@@ -369,7 +390,7 @@ pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<Gr
         let commit = repo.find_commit(oid).map_err(git_err)?;
         let hash = oid.to_string();
         let parent_oids = commit.parents().map(|parent| parent.id()).collect::<Vec<_>>();
-        let parent_hashes = parent_oids.iter().map(|parent| parent.to_string()).collect();
+        let parent_hashes = parent_oids.iter().map(|parent| parent.to_string()).collect::<Vec<_>>();
 
         let lane = if let Some(index) = find_lane_with_oid(&active_lanes, oid, None) {
             index
@@ -379,56 +400,64 @@ pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<Gr
             index
         };
 
-        let mut lines = active_lanes
-            .iter()
-            .enumerate()
-            .filter(|(index, lane_oid)| *index != lane && lane_oid.is_some())
-            .map(|(index, _)| GraphLine {
-                from_lane: index,
-                to_lane: index,
-                kind: "vertical".to_string(),
-            })
-            .collect::<Vec<_>>();
+        let mut next_lanes = active_lanes.clone();
+        let mut lines = Vec::new();
+        let mut parent_links = Vec::new();
 
         if let Some(first_parent) = parent_oids.first().copied() {
-            if let Some(target_lane) = find_lane_with_oid(&active_lanes, first_parent, Some(lane)) {
-                active_lanes[lane] = None;
-                lines.push(GraphLine {
-                    from_lane: lane,
+            if let Some(target_lane) = find_lane_with_oid(&next_lanes, first_parent, Some(lane)) {
+                next_lanes[lane] = None;
+                push_graph_line(&mut lines, lane, target_lane, "horizontal");
+                parent_links.push(GraphParentLink {
+                    parent_hash: first_parent.to_string(),
                     to_lane: target_lane,
-                    kind: "horizontal".to_string(),
+                    kind: "first_parent".to_string(),
+                    direct: false,
                 });
             } else {
-                active_lanes[lane] = Some(first_parent);
-                lines.push(GraphLine {
-                    from_lane: lane,
+                next_lanes[lane] = Some(first_parent);
+                push_graph_line(&mut lines, lane, lane, "vertical");
+                parent_links.push(GraphParentLink {
+                    parent_hash: first_parent.to_string(),
                     to_lane: lane,
-                    kind: "vertical".to_string(),
+                    kind: "first_parent".to_string(),
+                    direct: true,
                 });
             }
         } else {
-            active_lanes[lane] = None;
+            next_lanes[lane] = None;
         }
 
         for parent_oid in parent_oids.iter().skip(1).copied() {
-            let target_lane = if let Some(index) = find_lane_with_oid(&active_lanes, parent_oid, None) {
+            let target_lane = if let Some(index) = find_lane_with_oid(&next_lanes, parent_oid, None) {
                 index
             } else {
-                let index = first_free_lane(&mut active_lanes);
-                active_lanes[index] = Some(parent_oid);
+                let index = first_free_lane(&mut next_lanes);
+                next_lanes[index] = Some(parent_oid);
                 index
             };
 
-            lines.push(GraphLine {
-                from_lane: lane,
+            push_graph_line(&mut lines, lane, target_lane, "merge");
+            parent_links.push(GraphParentLink {
+                parent_hash: parent_oid.to_string(),
                 to_lane: target_lane,
-                kind: "merge".to_string(),
+                kind: "merge_parent".to_string(),
+                direct: target_lane == lane,
             });
         }
 
-        while active_lanes.last().is_some_and(|lane| lane.is_none()) {
-            active_lanes.pop();
+        for (index, lane_oid) in next_lanes.iter().enumerate() {
+            if *lane_oid == Some(oid) || lane_oid.is_none() {
+                continue;
+            }
+
+            push_graph_line(&mut lines, index, index, "vertical");
         }
+
+        while next_lanes.last().is_some_and(|lane| lane.is_none()) {
+            next_lanes.pop();
+        }
+        active_lanes = next_lanes;
 
         rows.push(GraphCommitInfo {
             short_hash: hash[..7].to_string(),
@@ -438,6 +467,7 @@ pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<Gr
             refs: ref_map.remove(&oid).unwrap_or_default(),
             parent_count: commit.parent_count(),
             parent_hashes,
+            parent_links,
             lane,
             node_kind: if Some(oid) == head_oid {
                 "head".to_string()

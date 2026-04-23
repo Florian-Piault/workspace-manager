@@ -28,6 +28,17 @@ fn make_test_repo_with_one_commit() -> (TempDir, Repository) {
     (dir, repo)
 }
 
+fn make_linear_repo() -> (TempDir, Repository) {
+    let dir = TempDir::new().unwrap();
+    let repo = Repository::init(dir.path()).unwrap();
+
+    let first = write_commit(&repo, &dir, "README.md", "one\n", "first", &[]);
+    let second = write_commit(&repo, &dir, "README.md", "two\n", "second", &[first]);
+    write_commit(&repo, &dir, "README.md", "three\n", "third", &[second]);
+
+    (dir, repo)
+}
+
 fn make_repo_with_branch_and_merge() -> (TempDir, Repository) {
     let dir = TempDir::new().unwrap();
     let repo = Repository::init(dir.path()).unwrap();
@@ -90,9 +101,32 @@ fn graph_for_single_commit_repo_returns_one_row() {
 
 #[test]
 fn graph_for_linear_history_keeps_all_rows_on_lane_zero() {
-    let (_dir, repo) = make_test_repo_with_one_commit();
+    let (_dir, repo) = make_linear_repo();
     let rows = crate::git::build_graph_rows(&repo, 50).unwrap();
     assert!(rows.iter().all(|row| row.lane == 0));
+}
+
+#[test]
+fn graph_for_linear_history_links_each_commit_to_its_true_parent() {
+    let (_dir, repo) = make_linear_repo();
+    let rows = crate::git::build_graph_rows(&repo, 50).unwrap();
+
+    let third = rows.iter().find(|row| row.message == "third").unwrap();
+    let second = rows.iter().find(|row| row.message == "second").unwrap();
+    let first = rows.iter().find(|row| row.message == "first").unwrap();
+
+    assert_eq!(third.parent_hashes, vec![second.hash.clone()]);
+    assert_eq!(third.parent_links.len(), 1);
+    assert_eq!(third.parent_links[0].parent_hash, second.hash);
+    assert_eq!(third.parent_links[0].to_lane, 0);
+    assert!(third.parent_links[0].direct);
+    assert!(third.lines.iter().any(|line| line.kind == "vertical" && line.from_lane == 0 && line.to_lane == 0));
+
+    assert_eq!(second.parent_hashes, vec![first.hash.clone()]);
+    assert_eq!(second.parent_links.len(), 1);
+    assert_eq!(second.parent_links[0].parent_hash, first.hash);
+    assert_eq!(second.parent_links[0].to_lane, 0);
+    assert!(second.parent_links[0].direct);
 }
 
 #[test]
@@ -103,6 +137,14 @@ fn graph_for_branch_and_merge_uses_multiple_lanes_and_merge_lines() {
     assert!(rows.iter().any(|row| row.lane > 0));
     assert!(rows.iter().any(|row| row.parent_count >= 2));
     assert!(rows.iter().any(|row| row.lines.iter().any(|line| line.kind == "merge")));
+
+    let merge_row = rows.iter().find(|row| row.message == "merge feature").unwrap();
+    assert_eq!(merge_row.parent_links.len(), 2);
+    assert_eq!(merge_row.parent_links[0].kind, "first_parent");
+    assert_eq!(merge_row.parent_links[1].kind, "merge_parent");
+    assert_eq!(merge_row.parent_links[0].parent_hash, merge_row.parent_hashes[0]);
+    assert_eq!(merge_row.parent_links[1].parent_hash, merge_row.parent_hashes[1]);
+    assert!(merge_row.parent_links.iter().map(|link| link.parent_hash.as_str()).eq(merge_row.parent_hashes.iter().map(|hash| hash.as_str())));
 }
 
 #[test]
@@ -111,13 +153,17 @@ fn graph_collapses_duplicate_parent_lanes_after_branch_converges() {
     let rows = crate::git::build_graph_rows(&repo, 50).unwrap();
 
     let feature_row = rows.iter().find(|row| row.message == "feature work").unwrap();
-    assert!(feature_row.lines.iter().any(|line| {
-        line.kind == "horizontal" && line.from_lane == feature_row.lane && line.to_lane == 0
-    }));
-
     let root_row = rows.iter().find(|row| row.message == "root").unwrap();
+    assert!(feature_row.lines.iter().any(|line| {
+        line.kind == "horizontal" && line.from_lane == feature_row.lane && line.to_lane == root_row.lane
+    }));
+    assert_eq!(feature_row.parent_links.len(), 1);
+    assert_eq!(feature_row.parent_links[0].parent_hash, root_row.hash);
+    assert_eq!(feature_row.parent_links[0].to_lane, root_row.lane);
+    assert!(!feature_row.parent_links[0].direct);
+
     assert_eq!(root_row.lane, 0);
-    assert!(root_row.lines.iter().all(|line| line.from_lane == 0 && line.to_lane == 0));
+    assert!(root_row.parent_hashes.is_empty());
 }
 
 #[test]
@@ -130,4 +176,22 @@ fn graph_refs_are_classified_with_head_local_and_remote_kinds() {
     assert!(refs.iter().any(|r| r.kind == "local" && r.name == "master"));
     assert!(refs.iter().any(|r| r.kind == "local" && r.name == "feature"));
     assert!(refs.iter().any(|r| r.kind == "remote" && r.name == "origin/feature"));
+}
+
+#[test]
+fn graph_emits_vertical_lines_for_newly_spawned_parent_lanes() {
+    let (_dir, repo) = make_repo_with_branch_and_merge();
+    let rows = crate::git::build_graph_rows(&repo, 50).unwrap();
+
+    let merge_row = rows.iter().find(|row| row.message == "merge feature").unwrap();
+    let merge_parent_lane = merge_row
+        .parent_links
+        .iter()
+        .find(|link| link.kind == "merge_parent")
+        .map(|link| link.to_lane)
+        .unwrap();
+
+    assert!(merge_row.lines.iter().any(|line| {
+        line.kind == "vertical" && line.from_lane == merge_parent_lane && line.to_lane == merge_parent_lane
+    }));
 }
