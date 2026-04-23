@@ -314,6 +314,14 @@ fn first_free_lane(active_lanes: &mut Vec<Option<git2::Oid>>) -> usize {
     }
 }
 
+fn find_lane_with_oid(active_lanes: &[Option<git2::Oid>], oid: git2::Oid, exclude_lane: Option<usize>) -> Option<usize> {
+    active_lanes
+        .iter()
+        .enumerate()
+        .find(|(index, candidate)| Some(*index) != exclude_lane && **candidate == Some(oid))
+        .map(|(index, _)| index)
+}
+
 pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<GraphCommitInfo>, String> {
     let mut ref_map: HashMap<git2::Oid, Vec<GraphRefInfo>> = HashMap::new();
     for reference in repo.references().map_err(git_err)? {
@@ -363,7 +371,7 @@ pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<Gr
         let parent_oids = commit.parents().map(|parent| parent.id()).collect::<Vec<_>>();
         let parent_hashes = parent_oids.iter().map(|parent| parent.to_string()).collect();
 
-        let lane = if let Some(index) = active_lanes.iter().position(|candidate| *candidate == Some(oid)) {
+        let lane = if let Some(index) = find_lane_with_oid(&active_lanes, oid, None) {
             index
         } else {
             let index = first_free_lane(&mut active_lanes);
@@ -383,18 +391,27 @@ pub(crate) fn build_graph_rows(repo: &Repository, limit: usize) -> Result<Vec<Gr
             .collect::<Vec<_>>();
 
         if let Some(first_parent) = parent_oids.first().copied() {
-            active_lanes[lane] = Some(first_parent);
-            lines.push(GraphLine {
-                from_lane: lane,
-                to_lane: lane,
-                kind: "vertical".to_string(),
-            });
+            if let Some(target_lane) = find_lane_with_oid(&active_lanes, first_parent, Some(lane)) {
+                active_lanes[lane] = None;
+                lines.push(GraphLine {
+                    from_lane: lane,
+                    to_lane: target_lane,
+                    kind: "horizontal".to_string(),
+                });
+            } else {
+                active_lanes[lane] = Some(first_parent);
+                lines.push(GraphLine {
+                    from_lane: lane,
+                    to_lane: lane,
+                    kind: "vertical".to_string(),
+                });
+            }
         } else {
             active_lanes[lane] = None;
         }
 
         for parent_oid in parent_oids.iter().skip(1).copied() {
-            let target_lane = if let Some(index) = active_lanes.iter().position(|candidate| *candidate == Some(parent_oid)) {
+            let target_lane = if let Some(index) = find_lane_with_oid(&active_lanes, parent_oid, None) {
                 index
             } else {
                 let index = first_free_lane(&mut active_lanes);

@@ -1,0 +1,4 @@
+{
+  "stacks": ["svelte", "rust"],
+  "includeCommon": true
+}

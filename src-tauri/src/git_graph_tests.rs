@@ -106,6 +106,21 @@ fn graph_for_branch_and_merge_uses_multiple_lanes_and_merge_lines() {
 }
 
 #[test]
+fn graph_collapses_duplicate_parent_lanes_after_branch_converges() {
+    let (_dir, repo) = make_repo_with_branch_and_merge();
+    let rows = crate::git::build_graph_rows(&repo, 50).unwrap();
+
+    let feature_row = rows.iter().find(|row| row.message == "feature work").unwrap();
+    assert!(feature_row.lines.iter().any(|line| {
+        line.kind == "horizontal" && line.from_lane == feature_row.lane && line.to_lane == 0
+    }));
+
+    let root_row = rows.iter().find(|row| row.message == "root").unwrap();
+    assert_eq!(root_row.lane, 0);
+    assert!(root_row.lines.iter().all(|line| line.from_lane == 0 && line.to_lane == 0));
+}
+
+#[test]
 fn graph_refs_are_classified_with_head_local_and_remote_kinds() {
     let (_dir, repo) = make_repo_with_branch_and_merge();
     let rows = crate::git::build_graph_rows(&repo, 50).unwrap();
